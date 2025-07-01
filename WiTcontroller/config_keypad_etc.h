@@ -41,10 +41,10 @@
     #define KEYPAD_KEYS  {'1', '2', '3'}, {'4', '5', '6'}, {'7', '8', '9'}, {'*', '0', '#'}
 #endif
 #ifndef KEYPAD_ROW_PINS
-    #define KEYPAD_ROW_PINS    {19, 18, 17, 16}
+    #define KEYPAD_ROW_PINS    {32, 33, 21, 22}
 #endif
 #ifndef KEYPAD_COLUMN_PINS
-    #define KEYPAD_COLUMN_PINS { 4, 0, 2}
+    #define KEYPAD_COLUMN_PINS { 15, 16, 27}
 #endif
 
 

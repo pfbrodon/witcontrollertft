@@ -21,7 +21,22 @@
 
 // use the Arduino IDE 'Library' Manager to get these libraries
 #include <Keypad.h>               // https://www.arduinolibraries.info/libraries/keypad                        GPL 3.0
-#include <U8g2lib.h>              // https://github.com/olikraus/u8g2  (Just get "U8g2" via the Arduino IDE Library Manager)   new-bsd
+// [OLED_REPLACED] #include <U8g2lib.h>              // https://github.com/olikraus/u8g2  (Just get "U8g2" via the Arduino IDE Library Manager)   new-bsd
+// === TFT ST7735S initialization ===
+#include <Adafruit_GFX.h>
+#include <Adafruit_ST7735.h>
+#include <SPI.h>
+
+// Pines del display TFT
+#define TFT_CS   5
+#define TFT_DC   16
+#define TFT_RST  4
+#define TFT_BL   25
+
+//Adafruit_ST7735 tft = Adafruit_ST7735(TFT_CS, TFT_DC, TFT_RST);
+Adafruit_ST7735 tft = Adafruit_ST7735(&SPI, TFT_CS, TFT_DC, TFT_RST);
+
+
 #include <WiThrottleProtocol.h>   // https://github.com/flash62au/WiThrottleProtocol                           Creative Commons 4.0  Attribution-ShareAlike
 #include <AiEsp32RotaryEncoder.h> // https://github.com/igorantolic/ai-esp32-rotary-encoder                    GPL 2.0
 
@@ -1071,7 +1086,7 @@ void connectWitServer() {
     }
     writeOledArray(false, false, true, true);
     writeOledBattery();
-    u8g2.sendBuffer();
+// [OLED_REPLACED]     // No necesario en TFT
 
     keypadUseType = KEYPAD_USE_OPERATION;
 
@@ -1629,12 +1644,26 @@ void additionalButtonLoop() {
 //  Setup and Loop
 // *********************************************************************************
 
+
+// Función color565 para definir colores RGB en pantallas TFT
+uint16_t color565(uint8_t r, uint8_t g, uint8_t b) {
+  return ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3);
+}
+
 void setup() {
   Serial.begin(115200);
-  // u8g2.setI2CAddress(0x3C * 2);
-  // u8g2.setBusClock(100000);
-  u8g2.begin();
-  u8g2.firstPage();
+// [REMOVED OLED] // [OLED_REPLACED]   // u8g2.setI2CAddress(0x3C * 2);
+// [REMOVED OLED] // [OLED_REPLACED]   // u8g2.setBusClock(100000);
+// [REMOVED OLED] // [OLED_REPLACED] // [OLED_REPLACED]   u8g2.begin();
+  tft.initR(INITR_BLACKTAB);
+  tft.setRotation(1);
+  pinMode(TFT_BL, OUTPUT);
+  digitalWrite(TFT_BL, HIGH);
+  tft.fillScreen(color565(0, 0, 0));
+  tft.setTextWrap(false);
+  tft.setTextSize(1);  // Escala de fuente 1 (6x8 pixeles)
+  tft.setTextColor(color565(255, 255, 255));
+// [REMOVED OLED] // [OLED_REPLACED]   u8g2.firstPage();
 
   delay(1000);
   debug_println("Start"); 
@@ -3527,55 +3556,55 @@ void writeOledSpeed() {
     writeOledFunctions();
 
      // throttle number
-    u8g2.setDrawColor(0);
-    u8g2.drawBox(0,0,12,16);
-    u8g2.setDrawColor(1);
-    u8g2.setFont(FONT_THROTTLE_NUMBER); // medium
-    u8g2.drawStr(2,15, String(currentThrottleIndex+1).c_str());
+// [OLED_REPLACED]     // Color de dibujo ignorado (usar color directo en Adafruit)
+// [REMOVED OLED] // [OLED_REPLACED]     u8g2.drawBox(0,0,12,16);
+// [OLED_REPLACED]     // Color de dibujo ignorado (usar color directo en Adafruit)
+// [OLED_REPLACED]     // Fuente personalizada ignorada: FONT_THROTTLE_NUMBER // medium
+// [REMOVED OLED] // [OLED_REPLACED]     u8g2.drawStr(2,15, String(currentThrottleIndex+1).c_str());
   }
 
   writeOledBattery();
   writeOledSpeedStepMultiplier();
 
   if (trackPower == PowerOn) {
-    // u8g2.drawBox(0,41,15,8);
-    u8g2.drawRBox(0,40,9,9,1);
-    u8g2.setDrawColor(0);
+// [REMOVED OLED] // [OLED_REPLACED]     // u8g2.drawBox(0,41,15,8);
+// [REMOVED OLED] // [OLED_REPLACED]     u8g2.drawRBox(0,40,9,9,1);
+// [OLED_REPLACED]     // Color de dibujo ignorado (usar color directo en Adafruit)
   }
-  u8g2.setFont(FONT_GLYPHS);
-  // u8g2.drawStr(0, 48, label_track_power.c_str());
-  u8g2.drawGlyph(1, 48, glyph_track_power);
-  u8g2.setDrawColor(1);
+// [OLED_REPLACED]   // Fuente personalizada ignorada: FONT_GLYPHS
+// [REMOVED OLED] // [OLED_REPLACED]   // u8g2.drawStr(0, 48, label_track_power.c_str());
+// [REMOVED OLED] // [OLED_REPLACED]   u8g2.drawGlyph(1, 48, glyph_track_power);
+// [OLED_REPLACED]   // Color de dibujo ignorado (usar color directo en Adafruit)
 
   if (!heartbeatCheckEnabled) {
-    u8g2.setFont(FONT_GLYPHS);
-    u8g2.drawGlyph(13, 49, glyph_heartbeat_off);
-    u8g2.setDrawColor(2);
-    u8g2.drawLine(13, 48, 20, 41);
-    // u8g2.drawLine(13, 48, 21, 40);
-    u8g2.setDrawColor(1);
+// [OLED_REPLACED]     // Fuente personalizada ignorada: FONT_GLYPHS
+// [REMOVED OLED] // [OLED_REPLACED]     u8g2.drawGlyph(13, 49, glyph_heartbeat_off);
+// [OLED_REPLACED]     // Color de dibujo ignorado (usar color directo en Adafruit)
+// [REMOVED OLED] // [OLED_REPLACED]     u8g2.drawLine(13, 48, 20, 41);
+// [REMOVED OLED] // [OLED_REPLACED]     // u8g2.drawLine(13, 48, 21, 40);
+// [OLED_REPLACED]     // Color de dibujo ignorado (usar color directo en Adafruit)
   }
 
   // direction
   // needed for new function state format
-  u8g2.setFont(FONT_DIRECTION); // medium
-  u8g2.drawStr(79,36, sDirection.c_str());
+// [OLED_REPLACED]   // Fuente personalizada ignorada: FONT_DIRECTION // medium
+// [REMOVED OLED] // [OLED_REPLACED]   u8g2.drawStr(79,36, sDirection.c_str());
 
   // speed
   const char *cSpeed = sSpeed.c_str();
-  // u8g2.setFont(u8g2_font_inb21_mn); // big
-  u8g2.setFont(FONT_SPEED); // big
-  int width = u8g2.getStrWidth(cSpeed);
-  u8g2.drawStr(22+(55-width),45, cSpeed);
+// [OLED_REPLACED]   // // Fuente personalizada ignorada: u8g2_font_inb21_mn // big
+// [OLED_REPLACED]   // Fuente personalizada ignorada: FONT_SPEED // big
+// [REMOVED OLED] // [OLED_REPLACED]   int width = u8g2.getStrWidth(cSpeed);
+// [REMOVED OLED] // [OLED_REPLACED]   u8g2.drawStr(22+(55-width),45, cSpeed);
 
   // speed and direction of next throttle
   if ( (maxThrottles > 1) && (foundNextThrottle) ) {
-    u8g2.setFont(FONT_NEXT_THROTTLE);
-    u8g2.drawStr(85+34,38, sNextThrottleNo.c_str() );
-    u8g2.drawStr(85+12,48, sNextThrottleSpeedAndDirection.c_str() );
+// [OLED_REPLACED]     // Fuente personalizada ignorada: FONT_NEXT_THROTTLE
+// [REMOVED OLED] // [OLED_REPLACED]     u8g2.drawStr(85+34,38, sNextThrottleNo.c_str() );
+// [REMOVED OLED] // [OLED_REPLACED]     u8g2.drawStr(85+12,48, sNextThrottleSpeedAndDirection.c_str() );
   }
 
-  u8g2.sendBuffer();
+// [OLED_REPLACED]   // No necesario en TFT
 
   // debug_println("writeOledSpeed(): end");
 }
@@ -3583,12 +3612,12 @@ void writeOledSpeed() {
 void writeOledSpeedStepMultiplier() {
   if (speedStep != currentSpeedStep[currentThrottleIndex]) {
     // oledText[3] = "X " + String(speedStepCurrentMultiplier);
-    u8g2.setDrawColor(1);
-    u8g2.setFont(FONT_GLYPHS);
-    u8g2.drawGlyph(1, 38, glyph_speed_step);
-    u8g2.setFont(FONT_DEFAULT);
-    // u8g2.drawStr(0, 37, ("X " + String(speedStepCurrentMultiplier)).c_str());
-    u8g2.drawStr(9, 37, String(speedStepCurrentMultiplier).c_str());
+// [OLED_REPLACED]     // Color de dibujo ignorado (usar color directo en Adafruit)
+// [OLED_REPLACED]     // Fuente personalizada ignorada: FONT_GLYPHS
+// [REMOVED OLED] // [OLED_REPLACED]     u8g2.drawGlyph(1, 38, glyph_speed_step);
+// [OLED_REPLACED]     // Fuente personalizada ignorada: FONT_DEFAULT
+// [REMOVED OLED] // [OLED_REPLACED]     // u8g2.drawStr(0, 37, ("X " + String(speedStepCurrentMultiplier)).c_str());
+// [REMOVED OLED] // [OLED_REPLACED]     u8g2.drawStr(9, 37, String(speedStepCurrentMultiplier).c_str());
   }
 }
 
@@ -3597,28 +3626,28 @@ void writeOledBattery() {
   if ( (useBatteryTest) && (showBatteryTest!=NONE) && (lastBatteryCheckTime>0)) {
     // debug_println("writeOledBattery(): do it"); 
     //int lastBatteryTestValue = random(0,100);
-    u8g2.setFont(FONT_GLYPHS);
-    u8g2.setDrawColor(1);
+// [OLED_REPLACED]     // Fuente personalizada ignorada: FONT_GLYPHS
+// [OLED_REPLACED]     // Color de dibujo ignorado (usar color directo en Adafruit)
     // int x = 13; int y = 28;
     int x = 120; int y = 11;
     // if (useBatteryPercentAsWellAsIcon) x = 102;
     if (showBatteryTest==ICON_AND_PERCENT) x = 102;
-    u8g2.drawStr(x, y, String("Z").c_str());
-    if (lastBatteryTestValue>10) u8g2.drawLine(x+1, y-6, x+1, y-3);
-    if (lastBatteryTestValue>25) u8g2.drawLine(x+2, y-6, x+2, y-3);
-    if (lastBatteryTestValue>50) u8g2.drawLine(x+3, y-6, x+3, y-3);
-    if (lastBatteryTestValue>75) u8g2.drawLine(x+4, y-6, x+4, y-3);
-    if (lastBatteryTestValue>90) u8g2.drawLine(x+5, y-6, x+5, y-3);
+// [REMOVED OLED] // [OLED_REPLACED]     u8g2.drawStr(x, y, String("Z").c_str());
+// [REMOVED OLED] // [OLED_REPLACED]     if (lastBatteryTestValue>10) u8g2.drawLine(x+1, y-6, x+1, y-3);
+// [REMOVED OLED] // [OLED_REPLACED]     if (lastBatteryTestValue>25) u8g2.drawLine(x+2, y-6, x+2, y-3);
+// [REMOVED OLED] // [OLED_REPLACED]     if (lastBatteryTestValue>50) u8g2.drawLine(x+3, y-6, x+3, y-3);
+// [REMOVED OLED] // [OLED_REPLACED]     if (lastBatteryTestValue>75) u8g2.drawLine(x+4, y-6, x+4, y-3);
+// [REMOVED OLED] // [OLED_REPLACED]     if (lastBatteryTestValue>90) u8g2.drawLine(x+5, y-6, x+5, y-3);
     
     // if (useBatteryPercentAsWellAsIcon) {
     if (showBatteryTest==ICON_AND_PERCENT) {
       // x = 13; y = 36;
       x = 112; y = 10;
-      u8g2.setFont(FONT_FUNCTION_INDICATORS);
+// [OLED_REPLACED]       // Fuente personalizada ignorada: FONT_FUNCTION_INDICATORS
       if(lastBatteryTestValue<5) {
-        u8g2.drawStr(x,y, String("LOW").c_str());
+// [REMOVED OLED] // [OLED_REPLACED]         u8g2.drawStr(x,y, String("LOW").c_str());
       } else {
-        u8g2.drawStr(x,y, String(String(lastBatteryTestValue)+"%").c_str());
+// [REMOVED OLED] // [OLED_REPLACED]         u8g2.drawStr(x,y, String(String(lastBatteryTestValue)+"%").c_str());
       }
     }
   }
@@ -3644,26 +3673,26 @@ void writeOledFunctions() {
   //       y = (i-6)*10-8;
   //     }
       
-  //     u8g2.drawBox(x,y,8,8);
-  //     u8g2.setDrawColor(0);
-  //     u8g2.setFont(u8g2_font_profont10_tf);
-  //     u8g2.drawStr( x+2, y+7, String( (i<10) ? i : i-10 ).c_str());
-  //     u8g2.setDrawColor(1);
+// [REMOVED OLED] // [OLED_REPLACED]   //     u8g2.drawBox(x,y,8,8);
+// [OLED_REPLACED]   //     // Color de dibujo ignorado (usar color directo en Adafruit)
+// [OLED_REPLACED]   //     // Fuente personalizada ignorada: u8g2_font_profont10_tf
+// [REMOVED OLED] // [OLED_REPLACED]   //     u8g2.drawStr( x+2, y+7, String( (i<10) ? i : i-10 ).c_str());
+// [OLED_REPLACED]   //     // Color de dibujo ignorado (usar color directo en Adafruit)
   //   //  } else {
   //   //    debug_print("Fn Off "); debug_println(i);
 
       // new function state format
       // anyFunctionsActive = true;
-      // u8g2.drawBox(i*4+12,12,5,7);
-      u8g2.drawRBox(i*4+12,12+1,5,7,2);
-      u8g2.setDrawColor(0);
-      u8g2.setFont(FONT_FUNCTION_INDICATORS);   
-      u8g2.drawUTF8( i*4+1+12, 18+1, String( (i<10) ? i : ((i<20) ? i-10 : i-20)).c_str());
-      u8g2.setDrawColor(1);
+// [REMOVED OLED] // [OLED_REPLACED]       // u8g2.drawBox(i*4+12,12,5,7);
+// [REMOVED OLED] // [OLED_REPLACED]       u8g2.drawRBox(i*4+12,12+1,5,7,2);
+// [OLED_REPLACED]       // Color de dibujo ignorado (usar color directo en Adafruit)
+// [OLED_REPLACED]       // Fuente personalizada ignorada: FONT_FUNCTION_INDICATORS   
+// [REMOVED OLED] // [OLED_REPLACED]       u8g2.drawUTF8( i*4+1+12, 18+1, String( (i<10) ? i : ((i<20) ? i-10 : i-20)).c_str());
+// [OLED_REPLACED]       // Color de dibujo ignorado (usar color directo en Adafruit)
      }
     //  if (anyFunctionsActive) {
-    //     u8g2.drawStr( 0, 18, (function_states).c_str());
-    // //     u8g2.drawHLine(0,19,128);
+// [REMOVED OLED] // [OLED_REPLACED]     //     u8g2.drawStr( 0, 18, (function_states).c_str());
+// [REMOVED OLED] // [OLED_REPLACED]     // //     u8g2.drawHLine(0,19,128);
     //  }
    }
   debug_println("writeOledFunctions(): end");
@@ -3679,9 +3708,9 @@ void writeOledArray(bool isThreeColums, bool isPassword, bool sendBuffer) {
 
 void writeOledArray(bool isThreeColums, bool isPassword, bool sendBuffer, bool drawTopLine) {
   // debug_println("Start writeOledArray()");
-  u8g2.clearBuffer();					// clear the internal memory
+// [OLED_REPLACED]   tft.fillScreen(color565(0, 0, 0));					// clear the internal memory
 
-  u8g2.setFont(FONT_DEFAULT); // small
+// [OLED_REPLACED]   // Fuente personalizada ignorada: FONT_DEFAULT // small
   
   int x=0;
   int y=10;
@@ -3694,16 +3723,16 @@ void writeOledArray(bool isThreeColums, bool isPassword, bool sendBuffer, bool d
 
   for (int i=0; i < max; i++) {
     const char *cLine1 = oledText[i].c_str();
-    if ((isPassword) && (i==2)) u8g2.setFont(FONT_PASSWORD); 
+// [OLED_REPLACED]     if ((isPassword) && (i==2)) // Fuente personalizada ignorada: FONT_PASSWORD 
 
     if (oledTextInvert[i]) {
-      u8g2.drawBox(x,y-8,62,10);
-      u8g2.setDrawColor(0);
+// [REMOVED OLED] // [OLED_REPLACED]       u8g2.drawBox(x,y-8,62,10);
+// [OLED_REPLACED]       // Color de dibujo ignorado (usar color directo en Adafruit)
     }
-    u8g2.drawUTF8(x,y, cLine1);
-    u8g2.setDrawColor(1);
+// [REMOVED OLED] // [OLED_REPLACED]     u8g2.drawUTF8(x,y, cLine1);
+// [OLED_REPLACED]     // Color de dibujo ignorado (usar color directo en Adafruit)
 
-    if ((isPassword) && (i==2)) u8g2.setFont(FONT_DEFAULT); 
+// [OLED_REPLACED]     if ((isPassword) && (i==2)) // Fuente personalizada ignorada: FONT_DEFAULT 
     y = y + 10;
     if ((i==5) || (i==11)) {
       x = x + xInc;
@@ -3712,12 +3741,12 @@ void writeOledArray(bool isThreeColums, bool isPassword, bool sendBuffer, bool d
   }
 
   if (drawTopLine) {
-    u8g2.drawHLine(0,11,128);
+// [REMOVED OLED] // [OLED_REPLACED]     u8g2.drawHLine(0,11,128);
     writeOledBattery();
   }
-  u8g2.drawHLine(0,51,128);
+// [REMOVED OLED] // [OLED_REPLACED]   u8g2.drawHLine(0,51,128);
 
-  if (sendBuffer) u8g2.sendBuffer();					// transfer internal memory to the display
+// [OLED_REPLACED]   if (sendBuffer) // No necesario en TFT					// transfer internal memory to the display
   // debug_println("writeOledArray(): end ");
 }
 
@@ -3773,6 +3802,62 @@ void deepSleepStart(int shutdownReason) {
   writeOledArray(false, false, true, true);
   delay(delayPeriod);
 
-  u8g2.setPowerSave(1);
+// [REMOVED OLED] // [OLED_REPLACED]   u8g2.setPowerSave(1);
   esp_deep_sleep_start();
+}
+
+
+void writeOledMenuTFT(String soFar, bool primeMenu) {
+  debug_print("writeOledMenuTFT() : "); debug_print(primeMenu); debug_print(" : "); debug_println(soFar);
+  lastOledStringParameter = soFar;
+
+  int offset = 0;
+  lastOledScreen = last_oled_screen_menu;
+  if (!primeMenu) {
+    offset = 10;
+    lastOledScreen = last_oled_screen_extra_submenu;
+  }
+
+  menuIsShowing = true;
+  bool drawTopLine = false;
+
+  tft.fillScreen(color565(0, 0, 0));
+  tft.setTextColor(color565(255, 255, 255));
+  tft.setTextSize(1);
+  int y = 0;
+  int lineHeight = 12;
+
+  if ((soFar == "") || ((!primeMenu) && (soFar.length() == 1))) {
+    int j = 0;
+    for (int i = 1 + offset; i < 10 + offset; i++) {
+      j = (i < 6 + offset) ? i - offset : i + 1 - offset;
+      tft.setCursor(5, y); tft.print(String(i - offset) + ": " + menuText[i][0]); y += lineHeight;
+    }
+    tft.setCursor(5, y); tft.print("0: " + menuText[0 + offset][0]); y += lineHeight;
+    setMenuTextForOled(menu_cancel);
+  } else {
+    int cmd = menuCommand.substring(0, 1).toInt();
+
+    tft.setCursor(5, y); tft.print(">> " + menuText[cmd][0] + ":"); y += lineHeight;
+    tft.setCursor(5, y); tft.print(menuCommand.substring(1)); y += lineHeight;
+    tft.setCursor(5, y); tft.print(menuText[cmd + offset][1]); y += lineHeight;
+
+    switch (soFar.charAt(0)) {
+      case MENU_ITEM_DROP_LOCO: {
+        if (wiThrottleProtocol.getNumberOfLocomotives(currentThrottleIndexChar) > 0) {
+          drawTopLine = true;
+          // Se podría agregar una llamada específica para mostrar locos
+        }
+      }
+      case MENU_ITEM_FUNCTION:
+      case MENU_ITEM_TOGGLE_DIRECTION: {
+        if (wiThrottleProtocol.getNumberOfLocomotives(currentThrottleIndexChar) <= 0) {
+          tft.setCursor(5, y); tft.print(MSG_THROTTLE_NUMBER + String(currentThrottleIndex + 1)); y += lineHeight;
+          tft.setCursor(5, y); tft.print(MSG_NO_LOCO_SELECTED); y += lineHeight;
+          setMenuTextForOled(menu_cancel);
+        }
+        break;
+      }
+    }
+  }
 }
