@@ -31,8 +31,9 @@
 #define TFT_CS   5
 #define TFT_DC   16
 #define TFT_RST  4
-#define TFT_BL   25
-
+#define TFT_BACKLIGHT   25
+#define LINE_HEIGHT 8 //alto del caracter
+#define Y_OFFSET     2 //corrimiento de +2 en Y
 //Adafruit_ST7735 tft = Adafruit_ST7735(TFT_CS, TFT_DC, TFT_RST);
 Adafruit_ST7735 tft = Adafruit_ST7735(&SPI, TFT_CS, TFT_DC, TFT_RST);
 
@@ -1650,17 +1651,29 @@ uint16_t color565(uint8_t r, uint8_t g, uint8_t b) {
   return ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3);
 }
 
-void setup() {
+/*void setup() {
   Serial.begin(115200);
 // [REMOVED OLED] // [OLED_REPLACED]   // u8g2.setI2CAddress(0x3C * 2);
 // [REMOVED OLED] // [OLED_REPLACED]   // u8g2.setBusClock(100000);
 // [REMOVED OLED] // [OLED_REPLACED] // [OLED_REPLACED]   u8g2.begin();
-  tft.initR(INITR_BLACKTAB);
-  tft.setRotation(1);
-  pinMode(TFT_BL, OUTPUT);
-  digitalWrite(TFT_BL, HIGH);
+  //------------------------------------
+  // 1) Configura el pin del backlight como salida:
+  pinMode(TFT_BACKLIGHT, OUTPUT);
+  // 2) Enciende el backlight (HIGH = luz encendida):
+  digitalWrite(TFT_BACKLIGHT, HIGH);
+
+  tft.initR(INITR_GREENTAB);// 3) Inicializa el controlador ST7735 (Inicia comunicación SPI y
+                            //    configura registros internos; INITR_BLACKTAB es el “tablavela” 
+                            //    específica para tu módulo):
+  tft.setRotation(1); // 4) Ajusta la orientación de la pantalla.
+                      //    0–3 giran en pasos de 90°. 1 = 90° a la derecha, por ejemplo.
+  // 5) Limpia toda la pantalla pintándola de negro.
+  //tft.fillScreen(ST77XX_BLACK);
   tft.fillScreen(color565(0, 0, 0));
+   // 6) Desactiva el ajuste automático de línea al llegar al margen
+  //    (usaremos cursores manuales):
   tft.setTextWrap(false);
+  //--------------------------------------------
   tft.setTextSize(1);  // Escala de fuente 1 (6x8 pixeles)
   tft.setTextColor(color565(255, 255, 255));
 // [REMOVED OLED] // [OLED_REPLACED]   u8g2.firstPage();
@@ -1715,7 +1728,80 @@ void setup() {
     esp_wifi_set_country_code("01", false);
   #endif
 }
+*/
+void writeTftFromBuffer() {
+  tft.fillScreen(ST77XX_BLACK);
+  tft.setTextSize(1);
+  tft.setTextColor(ST77XX_WHITE);
 
+  for (int i = 0; i < 18; i++) {
+    if (oledText[i].length() > 0) {
+      // X = 2, Y = línea*i + 2px de offset
+      tft.setCursor(2, LINE_HEIGHT * i + Y_OFFSET);
+      tft.print(oledText[i]);
+    }
+  }
+}
+
+void setup() {
+  Serial.begin(115200);
+  // Backlight
+  delay(1000);
+  debug_println("Start"); 
+  debug_print("WiTcontroller - Version: "); 
+  debug_println(appVersion);
+
+  batteryTest_loop();  // do the battery check once to start
+
+  pinMode(TFT_BACKLIGHT, OUTPUT);
+  digitalWrite(TFT_BACKLIGHT, HIGH);
+
+  // Inicialización del TFT
+  tft.initR(INITR_BLACKTAB);  // prueba también INITR_BLACKTAB si no ves nada
+  tft.setRotation(1);
+  tft.fillScreen(ST77XX_BLACK);
+
+  clearOledArray();
+  oledText[0] = appName;
+  oledText[2] = appVersion;
+  oledText[6] = MSG_START;
+  writeOledBattery();
+
+  writeTftFromBuffer();
+
+  rotaryEncoder.begin();  //initialize rotary encoder
+  rotaryEncoder.setup(readEncoderISR);
+  //set boundaries and if values should cycle or not 
+  rotaryEncoder.setBoundaries(0, 1000, circleValues); //minValue, maxValue, circleValues true|false (when max go to min and vice versa)
+  //rotaryEncoder.disableAcceleration(); //acceleration is now enabled by default - disable if you don't need it
+  rotaryEncoder.setAcceleration(100); //or set the value - larger number = more acceleration; 0 or 1 means disabled acceleration
+
+  //if EC11 is used in hardware build WITHOUT physical pullup resistore, then make then enable GPIO pullups on EC11 A and B inputs
+  if (EC11_PULLUPS_REQUIRED) {
+    // debug_println("EC11 A and B input pins, enabling GPIO pullups " );
+    pinMode(ROTARY_ENCODER_A_PIN, INPUT_PULLUP);
+    pinMode(ROTARY_ENCODER_B_PIN, INPUT_PULLUP);
+  }
+
+  keypad.addEventListener(keypadEvent); // Add an event listener for this keypad
+  keypad.setDebounceTime(KEYPAD_DEBOUNCE_TIME);
+  keypad.setHoldTime(KEYPAD_HOLD_TIME);
+
+  esp_sleep_enable_ext0_wakeup(GPIO_NUM_13,0); //1 = High, 0 = Low
+
+  keypadUseType = KEYPAD_USE_SELECT_SSID;
+  encoderUseType = ENCODER_USE_OPERATION;
+  ssidSelectionSource = SSID_CONNECTION_SOURCE_BROWSE;
+
+  initialiseAdditionalButtons();
+
+  // Dibujamos un rectángulo y un texto de prueba
+  /*tft.fillRoundRect(2, 2, 157, 20, 5, ST77XX_RED);
+  tft.setTextSize(1);
+  tft.setTextColor(ST77XX_WHITE);
+  tft.setCursor(9, 7);
+  tft.print(String("WiTcontroller-Ver.:") + appVersion);*/
+}
 void loop() {
   
   if (ssidConnectionState != CONNECTION_STATE_CONNECTED) {
