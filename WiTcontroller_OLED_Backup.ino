@@ -21,13 +21,7 @@
 
 // use the Arduino IDE 'Library' Manager to get these libraries
 #include <Keypad.h>               // https://www.arduinolibraries.info/libraries/keypad                        GPL 3.0
-//#include <U8g2lib.h>              // https://github.com/olikraus/u8g2  (Just get "U8g2" via the Arduino IDE Library Manager)   new-bsd
-// TFT support instead of OLED
-#include <Adafruit_GFX.h>         // Core graphics library
-#include <Adafruit_ST7735.h>      // Hardware-specific library for ST7735
-#include <SPI.h>
-#include "TFT_Modifications.h"    // TFT wrapper and functions
-//----------------------------------------------------------------------
+#include <U8g2lib.h>              // https://github.com/olikraus/u8g2  (Just get "U8g2" via the Arduino IDE Library Manager)   new-bsd
 #include <WiThrottleProtocol.h>   // https://github.com/flash62au/WiThrottleProtocol                           Creative Commons 4.0  Attribution-ShareAlike
 #include <AiEsp32RotaryEncoder.h> // https://github.com/igorantolic/ai-esp32-rotary-encoder                    GPL 2.0
 
@@ -36,9 +30,8 @@
 
 // create these files by copying the example files and editing them as needed
 #include "config_network.h"      // LAN networks (SSIDs and passwords)
-//#include "config_buttons.h"      // keypad buttons assignments
-#include "config_buttons_tft.h"  // TFT version of keypad buttons assignments
-//----------------------------------------------------------------------------
+#include "config_buttons.h"      // keypad buttons assignments
+
 // DO NOT ALTER these files
 #include "config_keypad_etc.h"
 #include "static.h"
@@ -328,10 +321,7 @@ bool oledDirectCommandsAreBeingDisplayed = false;
     int additionalButtonType[1] = {INPUT_PULLUP};
     int additionalButtonActions[1] = {FUNCTION_NULL};
     int additionalButtonLatching[1] = {false};
-    // TFT-specific variables
-    bool tftInitialized = false;
-    Adafruit_ST7735 tft = Adafruit_ST7735(TFT_CS_PIN, TFT_DC_PIN, TFT_RST_PIN);
-    //-----------------------------------------------------------------------------------------
+
     unsigned long lastAdditionalButtonDebounceTime[1];  // the last time the output pin was toggled
     bool additionalButtonRead[1];
     bool additionalButtonLastRead[1];
@@ -1643,11 +1633,9 @@ void setup() {
   Serial.begin(115200);
   // u8g2.setI2CAddress(0x3C * 2);
   // u8g2.setBusClock(100000);
-  //u8g2.begin();
-  //u8g2.firstPage();
-  // Initialize TFT instead of OLED
-  initializeTFT();
-  //-----------------------------------------
+  u8g2.begin();
+  u8g2.firstPage();
+
   delay(1000);
   debug_println("Start"); 
   debug_print("WiTcontroller - Version: "); debug_println(appVersion);
@@ -3447,15 +3435,6 @@ void writeHeartbeatCheck() {
 
 void writeOledSpeed() {
   lastOledScreen = last_oled_screen_speed;
-  menuIsShowing = false;
-  
-  // Use TFT enhanced display if available
-  if (tftInitialized && TFT_ENHANCED_DISPLAY) {
-    writeOledSpeedTFT();
-    return;
-  }
-  //-----------------------Original Abajo
-  lastOledScreen = last_oled_screen_speed;
 
   // debug_println("writeOledSpeed() ");
   
@@ -3699,12 +3678,6 @@ void writeOledArray(bool isThreeColums, bool isPassword, bool sendBuffer) {
 }
 
 void writeOledArray(bool isThreeColums, bool isPassword, bool sendBuffer, bool drawTopLine) {
-  // Use TFT version if available
-  if (tftInitialized && TFT_ENHANCED_DISPLAY) {
-    writeOledArrayTFT(isThreeColumns, isPassword, sendBuffer, drawTopLine);
-    return;
-  }
-  //------------------------------------------------------------------------
   // debug_println("Start writeOledArray()");
   u8g2.clearBuffer();					// clear the internal memory
 
