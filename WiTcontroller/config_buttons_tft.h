@@ -11,6 +11,10 @@
 // Uncomment the line below to enable TFT ST7735 support instead of OLED
 #define USE_TFT_DISPLAY true
 
+// Override the U8G2 OLED display definition from static.h
+// This prevents the U8G2 display from being created when using TFT
+#define OLED_TYPE /* TFT Display replaces OLED - no U8G2 object needed */
+
 // TFT Hardware pins - Adjust according to your wiring
 #define TFT_CS_PIN    5   // Chip select
 #define TFT_RST_PIN   4   // Reset (can be connected to ESP32 reset)

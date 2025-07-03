@@ -14,6 +14,22 @@
 #include <SPI.h>
 #include "config_tft.h"
 
+// Forward declarations for types from WiThrottleProtocol
+// These are defined in the WiThrottleProtocol library
+enum Direction { Forward, Reverse };
+enum TrackPower { PowerOff, PowerOn, PowerUnknown };
+
+// Debug function declaration - defined in main .ino file
+#if WITCONTROLLER_DEBUG == 0
+ #define debug_print(params...) Serial.print(params)
+ #define debug_println(params...) Serial.print(params); Serial.print(" ("); Serial.print(millis()); Serial.println(")")
+ #define debug_printf(params...) Serial.printf(params)
+#else
+ #define debug_print(...)
+ #define debug_println(...)
+ #define debug_printf(...)
+#endif
+
 // TFT instance - replaces u8g2
 extern Adafruit_ST7735 tft;
 
@@ -39,6 +55,14 @@ public:
     static void drawStr(int x, int y, const char* str);
     static void drawBox(int x, int y, int w, int h);
     static void drawGlyph(int x, int y, int glyph);
+    
+    // Additional U8G2-compatible methods needed by the main code
+    static void drawRBox(int x, int y, int w, int h, int r);
+    static void drawLine(int x1, int y1, int x2, int y2);
+    static void drawUTF8(int x, int y, const char* str);
+    static void drawHLine(int x, int y, int w);
+    static int getStrWidth(const char* str);
+    static void setPowerSave(int mode);
     
     // TFT-enhanced functions
     static void drawSpeedDisplay(int speed, Direction dir, int throttleNum);

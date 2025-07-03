@@ -3701,7 +3701,7 @@ void writeOledArray(bool isThreeColums, bool isPassword, bool sendBuffer) {
 void writeOledArray(bool isThreeColums, bool isPassword, bool sendBuffer, bool drawTopLine) {
   // Use TFT version if available
   if (tftInitialized && TFT_ENHANCED_DISPLAY) {
-    writeOledArrayTFT(isThreeColumns, isPassword, sendBuffer, drawTopLine);
+    writeOledArrayTFT(isThreeColums, isPassword, sendBuffer, drawTopLine);
     return;
   }
   //------------------------------------------------------------------------

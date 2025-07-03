@@ -66,6 +66,38 @@
 #define COLOR_MENU          TFT_LIGHTGREY
 #define COLOR_ERROR         TFT_RED
 
+// Theme constants used in TFT_Modifications
+#define TFT_ROTATION         0
+#define TFT_THEME_BACKGROUND COLOR_BACKGROUND
+#define TFT_THEME_TEXT       COLOR_TEXT
+#define TFT_THEME_HIGHLIGHT  COLOR_HIGHLIGHT
+#define TFT_THEME_SPEED      COLOR_SPEED
+#define TFT_THEME_DIRECTION  COLOR_DIRECTION
+#define TFT_THEME_FUNCTIONS  COLOR_FUNCTIONS
+#define TFT_THEME_BATTERY    COLOR_BATTERY
+#define TFT_THEME_MENU       COLOR_MENU
+#define TFT_THEME_ERROR      COLOR_ERROR
+#define TFT_SHOW_BATTERY_PERCENT true
+
+// Constants used in original code that need to be defined
+#define MAX_FUNCTIONS 32
+
+// TFT Enhanced display settings (from config_buttons_tft.h)
+#ifndef TFT_ENHANCED_DISPLAY
+#define TFT_ENHANCED_DISPLAY true
+#endif
+
+// Font constants to replace U8G2 font definitions
+#define u8g2_font_neuecraft_tr          FONT_SIZE_MEDIUM
+#define u8g2_font_open_iconic_all_1x_t  FONT_SIZE_SMALL
+#define u8g2_font_profont29_mr          FONT_SIZE_LARGE
+#define u8g2_font_6x12_m_symbols        FONT_SIZE_SMALL
+#define u8g2_font_9x15_tf               FONT_SIZE_MEDIUM
+#define u8g2_font_tiny_simon_tr         FONT_SIZE_SMALL
+
+// U8G2 compatibility constants
+#define U8G2_R0 0
+
 // *******************************************************************************************************************
 // Font sizes to approximate u8g2 fonts
 #define FONT_SIZE_SMALL     1
@@ -152,6 +184,12 @@ public:
     static void drawOLEDCompatibleArea();
     static int mapOLEDtoTFT_X(int oled_x);
     static int mapOLEDtoTFT_Y(int oled_y);
+    
+    // Enhanced display functions - these were missing from the header
+    static void drawSpeedDisplay(int speed, const char* direction, int throttleNum);
+    static void drawFunctionIndicators(bool functions[32]);
+    static void drawBatteryIndicator(int batteryPercent);
+    static void drawMenuText(const char* menuText);
     
 private:
     static int currentFontSize;

@@ -116,6 +116,41 @@ void TFTDisplay::drawGlyph(int x, int y, int glyph) {
 }
 
 // *********************************************************************************
+// Additional U8G2-compatible methods
+
+void TFTDisplay::drawRBox(int x, int y, int w, int h, int r) {
+    // For simplicity, draw a regular rectangle (TFT library doesn't have rounded rectangles easily)
+    uint16_t fillColor = (currentDrawColor == 0) ? TFT_THEME_BACKGROUND : currentTextColor;
+    tft.fillRect(x, y, w, h, fillColor);
+}
+
+void TFTDisplay::drawLine(int x1, int y1, int x2, int y2) {
+    uint16_t lineColor = (currentDrawColor == 0) ? TFT_THEME_BACKGROUND : currentTextColor;
+    tft.drawLine(x1, y1, x2, y2, lineColor);
+}
+
+void TFTDisplay::drawUTF8(int x, int y, const char* str) {
+    // UTF8 handling simplified - just draw as regular string
+    drawStr(x, y, str);
+}
+
+void TFTDisplay::drawHLine(int x, int y, int w) {
+    uint16_t lineColor = (currentDrawColor == 0) ? TFT_THEME_BACKGROUND : currentTextColor;
+    tft.drawFastHLine(x, y, w, lineColor);
+}
+
+int TFTDisplay::getStrWidth(const char* str) {
+    // Approximate string width based on current font size
+    int charWidth = 6 * currentFontSize; // Basic approximation
+    return strlen(str) * charWidth;
+}
+
+void TFTDisplay::setPowerSave(int mode) {
+    // TFT displays don't typically have power save - this is a no-op
+    // Could potentially control backlight if available
+}
+
+// *********************************************************************************
 // Enhanced TFT functions
 
 void TFTDisplay::drawSpeedDisplay(int speed, Direction dir, int throttleNum) {
