@@ -313,9 +313,9 @@ void writeOledSpeedTFT() {
     
     // Draw battery if enabled
     extern bool useBatteryTest;
-    extern int batteryTestValue;
+    extern int lastBatteryTestValue;
     if (useBatteryTest) {
-        tftDisplay.drawBatteryIndicator(batteryTestValue);
+        tftDisplay.drawBatteryIndicator(lastBatteryTestValue);
     }
     
     // Draw track power

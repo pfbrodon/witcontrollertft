@@ -7,8 +7,8 @@
 
 #include "config_tft.h"
 
-// Create TFT instance
-Adafruit_ST7735 tft = Adafruit_ST7735(TFT_CS_PIN, TFT_DC_PIN, TFT_RST_PIN);
+// TFT instance is defined in TFT_Modifications.cpp
+// extern Adafruit_ST7735 tft;
 
 // Static member initialization
 int TFTWrapper::currentFontSize = FONT_SIZE_SMALL;
