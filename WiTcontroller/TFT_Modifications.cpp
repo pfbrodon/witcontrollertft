@@ -45,14 +45,22 @@ void TFTDisplay::begin() {
 }
 
 void TFTDisplay::clearBuffer() {
-    if (!tftInitialized) return;
-    // Clear only the OLED-compatible area
+    if (!tftInitialized) {
+        debug_println("TFT clearBuffer called but TFT not initialized");
+        return;
+    }
+    debug_println("TFT clearBuffer: clearing screen");
+    // Clear only the OLED-compatible area to match OLED behavior
     tft.fillRect(0, 0, OLED_WIDTH, OLED_HEIGHT, TFT_THEME_BACKGROUND);
 }
 
 void TFTDisplay::sendBuffer() {
-    // TFT draws immediately, so this is a no-op
-    // But we can use it for any final updates
+    // TFT draws immediately, but we can add any final processing here
+    // For debugging, we could add a small indicator that buffer was sent
+    if (!tftInitialized) return;
+    
+    // Ensure all drawing operations are complete
+    // (TFT library handles this automatically, but we keep this for compatibility)
 }
 
 void TFTDisplay::firstPage() {
@@ -75,6 +83,11 @@ void TFTDisplay::setDrawColor(int color) {
 }
 
 void TFTDisplay::drawStr(int x, int y, const char* str) {
+    if (!tftInitialized) {
+        debug_println("TFT drawStr called but TFT not initialized");
+        return;
+    }
+    
     int tft_x = mapOLEDtoTFT_X(x);
     int tft_y = mapOLEDtoTFT_Y(y);
     

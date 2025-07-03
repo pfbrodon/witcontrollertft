@@ -328,9 +328,9 @@ bool oledDirectCommandsAreBeingDisplayed = false;
     int additionalButtonType[1] = {INPUT_PULLUP};
     int additionalButtonActions[1] = {FUNCTION_NULL};
     int additionalButtonLatching[1] = {false};
-    // TFT-specific variables
-    bool tftInitialized = false;
-    Adafruit_ST7735 tft = Adafruit_ST7735(TFT_CS_PIN, TFT_DC_PIN, TFT_RST_PIN);
+    // TFT-specific variables are defined in TFT_Modifications.cpp
+    // extern bool tftInitialized;
+    // extern Adafruit_ST7735 tft;
     //-----------------------------------------------------------------------------------------
     unsigned long lastAdditionalButtonDebounceTime[1];  // the last time the output pin was toggled
     bool additionalButtonRead[1];
