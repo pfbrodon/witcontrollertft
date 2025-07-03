@@ -29,19 +29,52 @@ TFTDisplay tftDisplay;
 // TFT Display Implementation
 
 void TFTDisplay::begin() {
-    tft.initR(INITR_BLACKTAB);
-    tft.setRotation(TFT_ROTATION);
-    tft.fillScreen(TFT_THEME_BACKGROUND);
-    tftInitialized = true;
+    debug_println("TFT begin: starting initialization");
     
-    // Show startup screen
-    setFont(FONT_SIZE_MEDIUM);
-    setDrawColor(1);
-    drawStr(10, 30, "WiTcontroller");
-    drawStr(10, 50, "TFT Edition");
-    drawStr(10, 70, "Starting...");
-    sendBuffer();
+    // Try different initialization types for ST7735
+    tft.initR(INITR_BLACKTAB);  // Most common
+    // Alternative: tft.initR(INITR_GREENTAB); or tft.initR(INITR_REDTAB);
+    
+    debug_println("TFT begin: setting rotation");
+    tft.setRotation(TFT_ROTATION);
+    
+    debug_println("TFT begin: filling screen with background color");
+    tft.fillScreen(TFT_BLACK);  // Use explicit black instead of theme constant
+    
+    tftInitialized = true;
+    debug_println("TFT begin: initialization complete");
+    
+    // Show startup screen with explicit colors
+    debug_println("TFT begin: drawing startup screen");
+    tft.setTextColor(TFT_WHITE, TFT_BLACK);
+    tft.setTextSize(2);
+    
+    tft.setCursor(10, 30);
+    tft.print("WiTcontroller");
+    
+    tft.setCursor(10, 50);
+    tft.print("TFT Edition");
+    
+    tft.setCursor(10, 70);
+    tft.print("Starting...");
+    
+    debug_println("TFT begin: startup screen drawn, waiting 2 seconds");
     delay(2000);
+    
+    // Clear screen to black
+    debug_println("TFT begin: clearing startup screen");
+    tft.fillScreen(TFT_BLACK);
+    
+    // Test different colors to make sure display works
+    debug_println("TFT begin: testing colors");
+    tft.fillScreen(TFT_RED);
+    delay(500);
+    tft.fillScreen(TFT_GREEN);
+    delay(500);
+    tft.fillScreen(TFT_BLUE);
+    delay(500);
+    tft.fillScreen(TFT_BLACK);
+    debug_println("TFT begin: color test complete");
 }
 
 void TFTDisplay::clearBuffer() {
