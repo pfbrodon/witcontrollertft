@@ -14,10 +14,8 @@
 #include <SPI.h>
 #include "config_tft.h"
 
-// Forward declarations for types from WiThrottleProtocol
-// These are defined in the WiThrottleProtocol library
-enum Direction { Forward, Reverse };
-enum TrackPower { PowerOff, PowerOn, PowerUnknown };
+// Include WiThrottleProtocol to get Direction and TrackPower types
+#include <WiThrottleProtocol.h>
 
 // Debug function declaration - defined in main .ino file
 #if WITCONTROLLER_DEBUG == 0
