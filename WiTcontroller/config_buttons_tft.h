@@ -18,7 +18,7 @@
 // TFT Hardware pins - Adjust according to your wiring
 #define TFT_CS_PIN    5   // Chip select
 #define TFT_RST_PIN   4   // Reset (can be connected to ESP32 reset)
-#define TFT_DC_PIN    2   // Data/Command
+#define TFT_DC_PIN    16   // Data/Command
 // MOSI and SCLK use default SPI pins (GPIO 23 and 18)
 
 // TFT Display type and options
@@ -98,7 +98,7 @@
 #define COLUMN_NUM  3
 #define KEYPAD_KEYS  {'1', '2', '3'}, {'4', '5', '6'}, {'7', '8', '9'}, {'*', '0', '#'}
 #define KEYPAD_ROW_PINS    {32, 33, 21, 22}
-#define KEYPAD_COLUMN_PINS { 15, 16, 27}
+#define KEYPAD_COLUMN_PINS {15, 26, 27}
 
 // *******************************************************************************************************************
 // TFT Display Definition (replaces oLED section)
