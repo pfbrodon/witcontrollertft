@@ -3579,6 +3579,137 @@ void writeOledSpeed() {
 
   // debug_println("writeOledSpeed(): end");
 }
+//VERSION TFT------------------------------------------------------------------------------------------------------
+void writeTftSpeed() {
+  lastOledScreen = last_oled_screen_speed;
+
+  menuIsShowing = false;
+
+  tft.fillScreen(ST77XX_BLACK);
+  tft.setTextColor(ST77XX_CYAN);
+  tft.setTextSize(1);
+
+  String sLocos = "";
+  String sSpeed = "";
+  String sDirection = "";
+  String sSpaceBetweenLocos = " ";
+
+  bool foundNextThrottle = false;
+  String sNextThrottleNo = "";
+  String sNextThrottleSpeedAndDirection = "";
+
+  bool drawTopLine = false;
+
+  clearOledArray();
+
+  if (wiThrottleProtocol.getNumberOfLocomotives(currentThrottleIndexChar) > 0) {
+    for (int i = 0; i < wiThrottleProtocol.getNumberOfLocomotives(currentThrottleIndexChar); i++) {
+      sLocos += sSpaceBetweenLocos + getDisplayLocoString(currentThrottleIndex, i);
+      sSpaceBetweenLocos = CONSIST_SPACE_BETWEEN_LOCOS;
+    }
+
+    sSpeed = String(getDisplaySpeed(currentThrottleIndex));
+    sDirection = (currentDirection[currentThrottleIndex] == Forward) ? DIRECTION_FORWARD_TEXT : DIRECTION_REVERSE_TEXT;
+    drawTopLine = true;
+
+    // Buscar siguiente throttle con locos
+    if (maxThrottles > 1) {
+      int nextThrottleIndex = currentThrottleIndex + 1;
+      for (int i = nextThrottleIndex; i < maxThrottles; i++) {
+        if (wiThrottleProtocol.getNumberOfLocomotives(getMultiThrottleChar(i)) > 0) {
+          foundNextThrottle = true;
+          nextThrottleIndex = i;
+          break;
+        }
+      }
+      if (!foundNextThrottle && currentThrottleIndex > 0) {
+        for (int i = 0; i < currentThrottleIndex; i++) {
+          if (wiThrottleProtocol.getNumberOfLocomotives(getMultiThrottleChar(i)) > 0) {
+            foundNextThrottle = true;
+            nextThrottleIndex = i;
+            break;
+          }
+        }
+      }
+      if (foundNextThrottle) {
+        sNextThrottleNo = String(nextThrottleIndex + 1);
+        int speed = getDisplaySpeed(nextThrottleIndex);
+        sNextThrottleSpeedAndDirection = String(speed);
+        sNextThrottleSpeedAndDirection = (currentDirection[nextThrottleIndex] == Forward)
+            ? sNextThrottleSpeedAndDirection + DIRECTION_FORWARD_TEXT_SHORT
+            : DIRECTION_REVERSE_TEXT_SHORT + sNextThrottleSpeedAndDirection;
+        sNextThrottleSpeedAndDirection = "     " + sNextThrottleSpeedAndDirection;
+        sNextThrottleSpeedAndDirection = sNextThrottleSpeedAndDirection.substring(sNextThrottleSpeedAndDirection.length() - 5);
+      }
+    }
+
+    oledText[0] = "   " + sLocos;
+  } else {
+    setAppnameForTft();  // adaptado
+    oledText[2] = MSG_THROTTLE_NUMBER + String(currentThrottleIndex + 1);
+    oledText[3] = MSG_NO_LOCO_SELECTED;
+    drawTopLine = true;
+  }
+
+  if (!hashShowsFunctionsInsteadOfKeyDefs) {
+    setMenuTextForTft(menu_menu);
+  } else {
+    setMenuTextForTft(menu_menu_hash_is_functions);
+  }
+
+  // Mostrar encabezado
+  writeTftArray(false, false, true, drawTopLine);  // Simula writeOledArray
+
+  if (wiThrottleProtocol.getNumberOfLocomotives(currentThrottleIndexChar) > 0) {
+    writeTftFunctions();  // reemplazo de writeOledFunctions()
+
+    // Número de throttle (dentro de caja)
+    tft.fillRect(0, 0, 14, 16, ST77XX_CYAN);
+    tft.setTextColor(ST77XX_BLACK);
+    tft.setTextSize(1);
+    tft.setCursor(2, 6);
+    tft.print(currentThrottleIndex + 1);
+    tft.setTextColor(ST77XX_CYAN);
+  }
+
+  drawTftBattery();                // reemplazo de writeOledBattery()
+  drawTftSpeedStepMultiplier();   // reemplazo de writeOledSpeedStepMultiplier()
+
+  if (trackPower == PowerOn) {
+    tft.fillRoundRect(0, 40, 9, 9, 1, ST77XX_CYAN);
+  }
+
+  // Dirección
+  tft.setTextSize(1);
+  tft.setCursor(79, 36);
+  tft.print(sDirection);
+
+  // Velocidad (grande y centrada)
+  const char* cSpeed = sSpeed.c_str();
+  tft.setTextSize(3);
+  int16_t x1, y1;
+  uint16_t w, h;
+  tft.getTextBounds(cSpeed, 0, 0, &x1, &y1, &w, &h);
+  tft.setCursor(22 + (55 - w), 45);
+  tft.print(cSpeed);
+
+  // Próximo throttle
+  if ((maxThrottles > 1) && (foundNextThrottle)) {
+    tft.setTextSize(1);
+    tft.setCursor(119, 38);
+    tft.print(sNextThrottleNo);
+    tft.setCursor(97, 48);
+    tft.print(sNextThrottleSpeedAndDirection);
+  }
+}
+void drawTftBattery() {
+  tft.drawRect(110, 2, 16, 8, ST77XX_CYAN);
+  tft.fillRect(126, 4, 2, 4, ST77XX_CYAN);
+  tft.fillRect(112, 4, 10, 4, ST77XX_CYAN);  // batería al 100%
+}
+
+
+//----------------------------------------------------------------------------------------------------------------
 
 void writeOledSpeedStepMultiplier() {
   if (speedStep != currentSpeedStep[currentThrottleIndex]) {
@@ -3668,15 +3799,24 @@ void writeOledFunctions() {
    }
   debug_println("writeOledFunctions(): end");
 }
-
+//-----------------------------------------------------------------
 void writeOledArray(bool isThreeColums, bool isPassword) {
   writeOledArray(isThreeColums, isPassword, true, false);
 }
-
+//EQUIVALENTE EN TFT
+void writeTftArray(bool isThreeColums, bool isPassword) {
+  writeTftArray(isThreeColums, isPassword, true, false);
+}
+//----------------------------------------------------------------
 void writeOledArray(bool isThreeColums, bool isPassword, bool sendBuffer) {
   writeOledArray(isThreeColums, isPassword, sendBuffer, false);
 }
+//EQUIVALENTE EN TFT
+void writeTftArray(bool isThreeColums, bool isPassword, bool sendBuffer) {
+  writeTftArray(isThreeColums, isPassword, sendBuffer, false);
+}
 
+//---------------------------------------------------------------------------------------------
 void writeOledArray(bool isThreeColums, bool isPassword, bool sendBuffer, bool drawTopLine) {
   // debug_println("Start writeOledArray()");
   u8g2.clearBuffer();					// clear the internal memory
@@ -3720,6 +3860,67 @@ void writeOledArray(bool isThreeColums, bool isPassword, bool sendBuffer, bool d
   if (sendBuffer) u8g2.sendBuffer();					// transfer internal memory to the display
   // debug_println("writeOledArray(): end ");
 }
+//EQUIVALENTE A LA FUNCION DE ARRIBA--------------------------------------------------------------------
+void writeTftArray(bool isThreeColums, bool isPassword, bool sendBuffer, bool drawTopLine) {
+  // Limpia pantalla
+  tft.fillScreen(ST77XX_BLACK);
+
+  int x = 0;
+  int y = 10;
+  int xInc = 64;
+  int max = 12;
+  if (isThreeColums) {
+    xInc = 42;
+    max = 18;
+  }
+
+  for (int i = 0; i < max; i++) {
+    String text = oledText[i];
+
+    // Si es password, ocultar línea 2
+    if (isPassword && i == 2) {
+      text = "******";
+    }
+
+    // Si está invertido, dibujar caja blanca y texto negro
+    if (oledTextInvert[i]) {
+      tft.fillRect(x, y - 8, 62, 10, ST77XX_WHITE);
+      tft.setTextColor(ST77XX_BLACK);
+    } else {
+      tft.setTextColor(ST77XX_WHITE);
+    }
+
+    tft.setCursor(x, y);
+    tft.setTextSize(1);  // Tamaño pequeño equivalente al OLED
+    tft.print(text);
+
+    y += 10;
+
+    // Cambio de columna
+    if (i == 5 || i == 11) {
+      x += xInc;
+      y = 10;
+    }
+  }
+
+  if (drawTopLine) {
+    tft.drawFastHLine(0, 11, 128, ST77XX_WHITE);
+    drawTftBattery();  // Función que reemplaza a writeOledBattery()
+  }
+
+  // Línea inferior
+  tft.drawFastHLine(0, 51, 128, ST77XX_WHITE);
+
+  // No se necesita sendBuffer (no existe en TFT)
+}
+//AUXILIAR
+void drawTftBattery() {
+  // Ejemplo: dibujar un ícono de batería simple
+  tft.drawRect(110, 2, 16, 8, ST77XX_WHITE);       // cuerpo
+  tft.fillRect(126, 4, 2, 4, ST77XX_WHITE);        // terminal
+  tft.fillRect(112, 4, 10, 4, ST77XX_WHITE);       // nivel (fijo)
+}
+//------------------------------------------------------------------------------------------------------------
 
 void clearOledArray() {
   for (int i=0; i < 15; i++) {
