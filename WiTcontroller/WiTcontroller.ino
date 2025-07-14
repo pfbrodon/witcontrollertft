@@ -38,6 +38,11 @@
 #include "actions.h"
 #include "WiTcontroller.h"
 
+// Nuevo sistema modular de display (opcional - para migración gradual)
+#include "display_interface.h"
+#include "display_oled_u8g2.h" 
+#include "display_manager.h"
+
 #if WITCONTROLLER_DEBUG == 0
  #define debug_print(params...) Serial.print(params)
  #define debug_println(params...) Serial.print(params); Serial.print(" ("); Serial.print(millis()); Serial.println(")")
@@ -73,6 +78,11 @@ String startupCommands[4] = {STARTUP_COMMAND_1, STARTUP_COMMAND_2, STARTUP_COMMA
 String oledText[18] = {"", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""};
 bool oledTextInvert[18] = {false, false, false, false, false, false, false, false, false, 
                            false, false, false, false, false, false, false, false, false};
+
+// Variables del nuevo sistema modular de display (para migración gradual)
+DisplayInterface* displayInterface = nullptr;
+DisplayManager* displayManager = nullptr;
+bool useNewDisplaySystem = false;  // Flag para activar/desactivar el nuevo sistema
 
 int currentSpeed[6];   // set to maximum possible (6)
 Direction currentDirection[6];   // set to maximum possible (6)
@@ -1636,6 +1646,15 @@ void setup() {
   u8g2.begin();
   u8g2.firstPage();
 
+  // Inicializar el nuevo sistema modular de display (opcional)
+  displayInterface = DisplayFactory::createOLEDDisplay(&u8g2);
+  if (displayInterface) {
+    displayManager = new DisplayManager(displayInterface);
+    displayManager->begin();
+    // useNewDisplaySystem = true;  // Descomentar para activar el nuevo sistema
+    debug_println("Nuevo sistema de display inicializado");
+  }
+
   delay(1000);
   debug_println("Start"); 
   debug_print("WiTcontroller - Version: "); debug_println(appVersion);
@@ -3185,6 +3204,15 @@ void refreshOled() {
 
 
 void writeOledFoundSSids(String soFar) {
+  // MIGRACIÓN GRADUAL: Usar nuevo sistema si está activado
+  if (useNewDisplaySystem && displayManager) {
+    debug_println("Usando NUEVO sistema de display para FoundSSids");
+    displayManager->showSsidList(soFar);
+    return;
+  }
+
+  // SISTEMA ORIGINAL: Mantener funcionamiento actual
+  debug_println("Usando sistema ORIGINAL de display para FoundSSids");
   menuIsShowing = true;
   keypadUseType = KEYPAD_USE_SELECT_SSID_FROM_FOUND;
   if (soFar == "") { // nothing entered yet
@@ -3202,6 +3230,15 @@ void writeOledFoundSSids(String soFar) {
 }
 
 void writeOledRoster(String soFar) {
+  // MIGRACIÓN GRADUAL: Usar nuevo sistema si está activado
+  if (useNewDisplaySystem && displayManager) {
+    debug_println("Usando NUEVO sistema de display para Roster");
+    displayManager->showRosterList(soFar);
+    return;
+  }
+
+  // SISTEMA ORIGINAL: Mantener funcionamiento actual
+  debug_println("Usando sistema ORIGINAL de display para Roster");
   lastOledScreen = last_oled_screen_roster;
   lastOledStringParameter = soFar;
 
@@ -3223,6 +3260,15 @@ void writeOledRoster(String soFar) {
 }
 
 void writeOledTurnoutList(String soFar, TurnoutAction action) {
+  // MIGRACIÓN GRADUAL: Usar nuevo sistema si está activado
+  if (useNewDisplaySystem && displayManager) {
+    debug_println("Usando NUEVO sistema de display para TurnoutList");
+    displayManager->showTurnoutList(soFar, action);
+    return;
+  }
+
+  // SISTEMA ORIGINAL: Mantener funcionamiento actual
+  debug_println("Usando sistema ORIGINAL de display para TurnoutList");
   lastOledScreen = last_oled_screen_turnout_list;
   lastOledStringParameter = soFar;
   lastOledTurnoutParameter = action;
@@ -3250,6 +3296,15 @@ void writeOledTurnoutList(String soFar, TurnoutAction action) {
 }
 
 void writeOledRouteList(String soFar) {
+  // MIGRACIÓN GRADUAL: Usar nuevo sistema si está activado
+  if (useNewDisplaySystem && displayManager) {
+    debug_println("Usando NUEVO sistema de display para RouteList");
+    displayManager->showRouteList(soFar);
+    return;
+  }
+
+  // SISTEMA ORIGINAL: Mantener funcionamiento actual
+  debug_println("Usando sistema ORIGINAL de display para RouteList");
   lastOledScreen = last_oled_screen_route_list;
   lastOledStringParameter = soFar;
 
@@ -3272,6 +3327,15 @@ void writeOledRouteList(String soFar) {
 }
 
 void writeOledFunctionList(String soFar) {
+  // MIGRACIÓN GRADUAL: Usar nuevo sistema si está activado
+  if (useNewDisplaySystem && displayManager) {
+    debug_println("Usando NUEVO sistema de display para FunctionList");
+    displayManager->showFunctionList(soFar);
+    return;
+  }
+
+  // SISTEMA ORIGINAL: Mantener funcionamiento actual
+  debug_println("Usando sistema ORIGINAL de display para FunctionList");
   lastOledScreen = last_oled_screen_function_list;
   lastOledStringParameter = soFar;
 
@@ -3329,7 +3393,15 @@ void writeOledEnterPassword() {
 }
 
 void writeOledMenu(String soFar, bool primeMenu) {
-  debug_print("writeOledMenu() : "); debug_print(primeMenu); debug_print(" : "); debug_println(soFar);
+  // MIGRACIÓN GRADUAL: Usar nuevo sistema si está activado
+  if (useNewDisplaySystem && displayManager) {
+    debug_println("Usando NUEVO sistema de display para Menu");
+    displayManager->showMenu(soFar, primeMenu);
+    return;
+  }
+
+  // SISTEMA ORIGINAL: Mantener funcionamiento actual
+  debug_print("writeOledMenu() ORIGINAL : "); debug_print(primeMenu); debug_print(" : "); debug_println(soFar);
   lastOledStringParameter = soFar;
 
   int offset = 0;
@@ -3434,6 +3506,15 @@ void writeHeartbeatCheck() {
 }
 
 void writeOledSpeed() {
+  // MIGRACIÓN GRADUAL: Usar nuevo sistema si está activado
+  if (useNewDisplaySystem && displayManager) {
+    debug_println("Usando NUEVO sistema de display para Speed (Throttle Screen)");
+    displayManager->showThrottleScreen();
+    return;
+  }
+
+  // SISTEMA ORIGINAL: Mantener funcionamiento actual
+  debug_println("Usando sistema ORIGINAL de display para Speed");
   lastOledScreen = last_oled_screen_speed;
 
   // debug_println("writeOledSpeed() ");
@@ -3731,6 +3812,17 @@ void clearOledArray() {
 void writeOledDirectCommands() {
   lastOledScreen = last_oled_screen_direct_commands;
 
+  // MIGRACIÓN GRADUAL: Usar nuevo sistema si está activado
+  if (useNewDisplaySystem && displayManager) {
+    debug_println("Usando NUEVO sistema de display para Direct Commands");
+    oledDirectCommandsAreBeingDisplayed = true;
+    displayManager->showDirectCommands();
+    menuCommandStarted = false;
+    return;
+  }
+
+  // SISTEMA ORIGINAL: Mantener funcionamiento actual
+  debug_println("Usando sistema ORIGINAL de display para Direct Commands");
   oledDirectCommandsAreBeingDisplayed = true;
   clearOledArray();
   oledText[0] = DIRECT_COMMAND_LIST;
