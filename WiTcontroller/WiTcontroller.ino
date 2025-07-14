@@ -24,6 +24,10 @@
 #include <U8g2lib.h>              // https://github.com/olikraus/u8g2  (Just get "U8g2" via the Arduino IDE Library Manager)   new-bsd
 #include <WiThrottleProtocol.h>   // https://github.com/flash62au/WiThrottleProtocol                           Creative Commons 4.0  Attribution-ShareAlike
 #include <AiEsp32RotaryEncoder.h> // https://github.com/igorantolic/ai-esp32-rotary-encoder                    GPL 2.0
+// Librerias para el TFT
+#include <SPI.h>
+#include <Adafruit_GFX.h>
+#include <Adafruit_ST7735.h>
 
 // this library is included with the WiTController code
 #include "Pangodream_18650_CL.h"  // https://github.com/pangodream/18650CL                                     Copyright (c) 2019 Pangodream
@@ -49,6 +53,20 @@
 #endif
 int debugLevel = DEBUG_LEVEL;
 
+//Estas funciones son versiones equivalentes a las OLED, pero aún no existen en tu código.
+//Podés simplemente redirigirlas a las OLED, o crear sus versiones TFT si deseás.
+//#define setAppnameForTft setAppnameForOled
+//#define setMenuTextForTft setMenuTextForOled
+//#define writeTftFunctions writeOledFunctions
+//#define drawTftSpeedStepMultiplier writeTftSpeedStepMultiplier
+//Definicion de los pines del TFT
+
+#define TFT_CS        5
+#define TFT_DC        16
+#define TFT_RST       4
+#define TFT_BACKLIGHT 25
+
+Adafruit_ST7735 tft = Adafruit_ST7735(TFT_CS, TFT_DC, TFT_RST);
 
 // *********************************************************************************
 // non-volatile storage
@@ -81,6 +99,9 @@ int speedStepCurrentMultiplier = 1;
 TrackPower trackPower = PowerUnknown;
 String turnoutPrefix = "";
 String routePrefix = "";
+
+
+bool alreadyDisplayedSsids = false;
 
 // encoder variables
 bool circleValues = true;
@@ -340,7 +361,7 @@ void displayUpdateFromWit(int multiThrottleIndex) {
   debug_println("");
   if ( (keypadUseType == KEYPAD_USE_OPERATION) && (!menuIsShowing) 
   && (multiThrottleIndex==currentThrottleIndex) ) {
-    writeOledSpeed();
+    writeTftSpeed();
   }
 }
 
@@ -598,10 +619,10 @@ void browseSsids() { // show the found SSIDs
 
   debug_println("Browsing for ssids");
   clearOledArray(); 
-  setAppnameForOled();
+  setAppnameForTft();
   oledText[2] = MSG_BROWSING_FOR_SSIDS;
-  writeOledBattery();
-  writeOledArray(false, false, true, true);
+  drawTftBattery();
+  writeTftArray(false, false, true, true);
 
   WiFi.setScanMethod(WIFI_ALL_CHANNEL_SCAN);
   WiFi.setSortMethod(WIFI_CONNECT_AP_BY_SIGNAL);
@@ -643,11 +664,11 @@ void browseSsids() { // show the found SSIDs
 
     clearOledArray(); oledText[10] = MSG_SSIDS_FOUND;
 
-    writeOledFoundSSids("");
-
-    // oledText[5] = menu_select_ssids_from_found;
-    setMenuTextForOled(menu_select_ssids_from_found);
-    writeOledArray(false, false);
+    writeTftFoundSSids("");
+    delay(3000);
+    oledText[5] = menu_select_ssids_from_found;
+    //setMenuTextForTft(menu_select_ssids_from_found);
+    //writeTftArray(false, false);
 
     keypadUseType = KEYPAD_USE_SELECT_SSID_FROM_FOUND;
     ssidConnectionState = CONNECTION_STATE_SELECTION_REQUIRED;
@@ -720,14 +741,14 @@ void showListOfSsids() {  // show the list from the specified values in config_n
   startWaitForSelection = millis();
 
   clearOledArray(); 
-  setAppnameForOled(); 
-  writeOledBattery();
-  writeOledArray(false, false);
+  setAppnameForTft(); 
+  drawTftBattery();
+  writeTftArray(false, false);
 
   if (maxSsids == 0) {
     oledText[1] = MSG_NO_SSIDS_FOUND;
-    writeOledBattery();
-    writeOledArray(false, false, true, true);
+    drawTftBattery();
+    writeTftArray(false, false, true, true);
     debug_println(oledText[1]);
   
   } else {
@@ -752,9 +773,9 @@ void showListOfSsids() {  // show the list from the specified values in config_n
 
     if (maxSsids > 0) {
       // oledText[5] = menu_select_ssids;
-      setMenuTextForOled(menu_select_ssids);
+      setMenuTextForTft(menu_select_ssids);
     }
-    writeOledArray(false, false);
+    writeTftArray(false, false);
 
     if (maxSsids == 1) {
       selectedSsid = ssids[0];
@@ -787,10 +808,10 @@ void selectSsid(int selection) {
 void connectSsid() {
   debug_println("Connecting to ssid...");
   clearOledArray(); 
-  setAppnameForOled();
+  setAppnameForTft();
   oledText[1] = selectedSsid; oledText[2] + "connecting...";
-  writeOledBattery();
-  writeOledArray(false, false, true, true);
+  drawTftBattery();
+  writeTftArray(false, false, true, true);
 
   double startTime = millis();
   double nowTime = startTime;
@@ -801,11 +822,11 @@ void connectSsid() {
   if (selectedSsid.length()>0) {
     debug_print("Trying Network "); debug_println(cSsid);
     clearOledArray(); 
-    setAppnameForOled(); 
+    setAppnameForTft(); 
     for (int i = 0; i < 3; ++i) {  // Try three times
       oledText[1] = selectedSsid; oledText[2] =  String(MSG_TRYING_TO_CONNECT) + " (" + String(i) + ")";
-      writeOledBattery();
-      writeOledArray(false, false, true, true);
+      drawTftBattery();
+      writeTftArray(false, false, true, true);
 
       nowTime = startTime;
       debug_print("hostname ");debug_println(WiFi.getHostname());
@@ -818,8 +839,8 @@ void connectSsid() {
             && ((nowTime-startTime) <= SSID_CONNECTION_TIMEOUT) ) { // wait for X seconds to see if the connection worked
         if (millis() > tempTimer + 250) {
           oledText[3] = getDots(j);
-          writeOledBattery();
-          writeOledArray(false, false, true, true);
+          drawTftBattery();
+          writeTftArray(false, false, true, true);
           j++;
           debug_print(".");
           tempTimer = millis();
@@ -840,8 +861,8 @@ void connectSsid() {
       debug_print("Connected. IP address: "); debug_println(WiFi.localIP());
       oledText[2] = MSG_CONNECTED; 
       oledText[3] = MSG_ADDRESS_LABEL + String(WiFi.localIP());
-      writeOledBattery();
-      writeOledArray(false, false, true, true);
+      drawTftBattery();
+      writeTftArray(false, false, true, true);
       // ssidConnected = true;
       ssidConnectionState = CONNECTION_STATE_CONNECTED;
       keypadUseType = KEYPAD_USE_SELECT_WITHROTTLE_SERVER;
@@ -850,8 +871,8 @@ void connectSsid() {
       if (!MDNS.begin("WiTcontroller")) {
         debug_println("Error setting up MDNS responder!");
         oledText[2] = MSG_BOUNJOUR_SETUP_FAILED;
-        writeOledBattery();
-        writeOledArray(false, false, true, true);
+        drawTftBattery();
+        writeTftArray(false, false, true, true);
         delay(2000);
         ssidConnectionState = CONNECTION_STATE_DISCONNECTED;
       } else {
@@ -861,8 +882,8 @@ void connectSsid() {
     } else {
       debug_println(MSG_CONNECTION_FAILED);
       oledText[2] = MSG_CONNECTION_FAILED;
-      writeOledBattery();
-      writeOledArray(false, false, true, true);
+      drawTftBattery();
+      writeTftArray(false, false, true, true);
       delay(2000);
       
       WiFi.disconnect();      
@@ -906,8 +927,8 @@ void browseWitService() {
   clearOledArray(); 
   oledText[0] = appName; oledText[6] = appVersion; 
   oledText[1] = selectedSsid;   oledText[2] = MSG_BROWSING_FOR_SERVICE;
-  writeOledBattery();
-  writeOledArray(false, false, true, true);
+  drawTftBattery();
+  writeTftArray(false, false, true, true);
   
   startWaitForSelection = millis();
 
@@ -915,8 +936,8 @@ void browseWitService() {
   if ( (selectedSsid.substring(0,6) == "DCCEX_") && (selectedSsid.length()==12) ) {
     debug_println(MSG_BYPASS_WIT_SERVER_SEARCH);
     oledText[1] = MSG_BYPASS_WIT_SERVER_SEARCH;
-    writeOledBattery();
-    writeOledArray(false, false, true, true);
+    drawTftBattery();
+    writeTftArray(false, false, true, true);
     delay(500);
   } else {
     int j = 0;
@@ -924,8 +945,8 @@ void browseWitService() {
     && ((nowTime-startTime) <= 10000)) { // try for 10 seconds 
       noOfWitServices = MDNS.queryService(service, proto);
       oledText[3] = getDots(j);
-      writeOledBattery();
-      writeOledArray(false, false, true, true);
+      drawTftBattery();
+      writeTftArray(false, false, true, true);
       j++;
       debug_print(".");
       nowTime = millis();
@@ -963,8 +984,8 @@ void browseWitService() {
 
   if (foundWitServersCount == 0) {
     oledText[1] = MSG_NO_SERVICES_FOUND;
-    writeOledBattery();
-    writeOledArray(false, false, true, true);
+    drawTftBattery();
+    writeTftArray(false, false, true, true);
     debug_println(oledText[1]);
     delay(1000);
     buildWitEntry();
@@ -986,9 +1007,9 @@ void browseWitService() {
 
     if (foundWitServersCount > 0) {
       // oledText[5] = menu_select_wit_service;
-      setMenuTextForOled(menu_select_wit_service);
+      setMenuTextForTft(menu_select_wit_service);
     }
-    writeOledArray(false, false);
+    writeTftArray(false, false);
 
     if ( (foundWitServersCount == 1) && (autoConnectToFirstWiThrottleServer) ) {
       debug_println("WiT Selection - only 1");
@@ -1025,18 +1046,18 @@ void connectWitServer() {
 
   debug_println("Connecting to the server...");
   clearOledArray(); 
-  setAppnameForOled(); 
+  setAppnameForTft(); 
   oledText[1] = "        " + selectedWitServerIP.toString() + " : " + String(selectedWitServerPort); 
   oledText[2] = "        " + selectedWitServerName; oledText[3] + MSG_CONNECTING;
-  writeOledBattery();
-  writeOledArray(false, false, true, true);
+  drawTftBattery();
+  writeTftArray(false, false, true, true);
   
   startWaitForSelection = millis();
 
   if (!client.connect(selectedWitServerIP, selectedWitServerPort)) {
     debug_println(MSG_CONNECTION_FAILED);
     oledText[3] = MSG_CONNECTION_FAILED;
-    writeOledArray(false, false, true, true);
+    writeTftArray(false, false, true, true);
     delay(5000);
     
     witConnectionState = CONNECTION_STATE_DISCONNECTED;
@@ -1064,13 +1085,13 @@ void connectWitServer() {
     oledText[3] = MSG_CONNECTED;
     if (!hashShowsFunctionsInsteadOfKeyDefs) {
       // oledText[5] = menu_menu;
-      setMenuTextForOled(menu_menu);
+      setMenuTextForTft(menu_menu);
     } else {
       // oledText[5] = menu_menu_hash_is_functions;
-      setMenuTextForOled(menu_menu_hash_is_functions);
+      setMenuTextForTft(menu_menu_hash_is_functions);
     }
-    writeOledArray(false, false, true, true);
-    writeOledBattery();
+    writeTftArray(false, false, true, true);
+    drawTftBattery();
     u8g2.sendBuffer();
 
     keypadUseType = KEYPAD_USE_OPERATION;
@@ -1084,12 +1105,12 @@ void enterWitServer() {
   if (witServerIpAndPortChanged) { // don't refresh the screen if nothing nothing has changed
     debug_println("enterWitServer()");
     clearOledArray(); 
-    setAppnameForOled(); 
+    setAppnameForTft(); 
     oledText[1] = MSG_NO_SERVICES_FOUND_ENTRY_REQUIRED;
     oledText[3] = witServerIpAndPortConstructed;
     // oledText[5] = menu_select_wit_entry;
-      setMenuTextForOled(menu_select_wit_entry);
-    writeOledArray(false, false, true, true);
+      setMenuTextForTft(menu_select_wit_entry);
+    writeTftArray(false, false, true, true);
     witServerIpAndPortChanged = false;
   }
 }
@@ -1102,7 +1123,7 @@ void disconnectWitServer() {
   wiThrottleProtocol.disconnect();
   debug_println("Disconnected from wiThrottle server\n");
   clearOledArray(); oledText[0] = MSG_DISCONNECTED;
-  writeOledArray(false, false, true, true);
+  writeTftArray(false, false, true, true);
   witConnectionState = CONNECTION_STATE_DISCONNECTED;
   witServerIpAndPortChanged = true;
 }
@@ -1242,7 +1263,7 @@ void readPreferences() {
     currentThrottleIndex = 0;
     currentThrottleIndexChar = '0';
     resetFunctionStates(currentThrottleIndex);
-    writeOledSpeed();
+    writeTftSpeed();
   } else {
     debug_println("readPreferences(): Non-volitile storage not initialised");
   }
@@ -1327,7 +1348,7 @@ void rotary_onButtonClick() {
         doDirectAction(encoderButtonAction);
       // }
       debug_println("encoder button pressed");
-      writeOledSpeed();
+      writeTftSpeed();
     }  else {
       deepSleepStart();
     }
@@ -1636,6 +1657,15 @@ void setup() {
   u8g2.begin();
   u8g2.firstPage();
 
+  //Inicio del TFT
+  pinMode(TFT_BACKLIGHT, OUTPUT);
+  digitalWrite(TFT_BACKLIGHT, HIGH);
+
+  tft.initR(INITR_BLACKTAB); // o INITR_BLACKTAB si se ve mal
+  tft.setRotation(1);  // Horizontal 0,1,2,3 según cómo lo orientes
+  tft.fillScreen(ST77XX_BLACK);
+  //------------------------------------
+
   delay(1000);
   debug_println("Start"); 
   debug_print("WiTcontroller - Version: "); debug_println(appVersion);
@@ -1643,8 +1673,8 @@ void setup() {
   batteryTest_loop();  // do the battery check once to start
 
   clearOledArray(); oledText[0] = appName; oledText[6] = appVersion; oledText[2] = MSG_START;
-  writeOledBattery();
-  writeOledArray(false, false, true, true);
+  drawTftBattery();
+  writeTftArray(false, false, true, true);
 
   rotaryEncoder.begin();  //initialize rotary encoder
   rotaryEncoder.setup(readEncoderISR);
@@ -1738,11 +1768,11 @@ void doKeyPress(char key, bool pressed) {
             menuCommand = "";
             if (menuCommandStarted) { // then cancel the menu
               resetMenu();
-              writeOledSpeed();
+              writeTftSpeed();
             } else {
               menuCommandStarted = true;
               debug_println("doKeyPress(): Command started");
-              writeOledMenu("", true);
+              writeTftMenu("", true);
             }
             break;
 
@@ -1753,13 +1783,13 @@ void doKeyPress(char key, bool pressed) {
             } else {
               if (!hashShowsFunctionsInsteadOfKeyDefs) {
                 if (!oledDirectCommandsAreBeingDisplayed) {
-                  writeOledDirectCommands();
+                  writeTftDirectCommands();
                 } else {
                   oledDirectCommandsAreBeingDisplayed = false;
-                  writeOledSpeed();
+                  writeTftSpeed();
                 }
               } else {
-                writeOledFunctionList(""); 
+                writeTftFunctionList(""); 
               }
             }
             break;
@@ -1801,16 +1831,16 @@ void doKeyPress(char key, bool pressed) {
                 && (menuCommand.length() == 0)) {  // menu type needs only one char
                   debug_println("doKeyPress(): MENU_ITEM_TYPE_SUB_MENU : "); 
                   menuCommand += key;
-                  writeOledMenu(menuCommand, false);
+                  writeTftMenu(menuCommand, false);
                 // } else if ( (menuCharsRequired[index0] == MENU_ITEM_TYPE_SELECT_FROM_LIST) 
                 //           && (menuCommand.length() == 0)) {  // menu type needs only one char
                 //   debug_println("doKeyPress(): MENU_ITEM_TYPE_SELECT_FROM_LIST : "); 
                 //   menuCommand += key;
-                //   writeOledMenu(menuCommand, false);
+                //   writeTftMenu(menuCommand, false);
                 } else {  //menu type allows/requires more than one char
                   debug_println("doKeyPress(): MENU_ITEM_TYPE_ONE_OR_MORE_CHARS");
                   menuCommand += key;
-                  writeOledMenu(menuCommand, true);
+                  writeTftMenu(menuCommand, true);
                 }
               }
             } else {
@@ -1914,7 +1944,7 @@ void doKeyPress(char key, bool pressed) {
               } else {
                 page = 0;
               }
-              writeOledFoundSSids(""); 
+              writeTftFoundSSids(""); 
             }
             break;
           case '9': // show in code list of SSIDs
@@ -1946,7 +1976,7 @@ void doKeyPress(char key, bool pressed) {
             break;
           case '*':  // cancel
             resetMenu();
-            writeOledSpeed();
+            writeTftSpeed();
             break;
           default:  // do nothing 
             break;
@@ -1973,7 +2003,7 @@ void doKeyPress(char key, bool pressed) {
             break;
           case '*':  // cancel
             resetMenu();
-            writeOledSpeed();
+            writeTftSpeed();
             break;
           default:  // do nothing 
             break;
@@ -1999,7 +2029,7 @@ void doKeyPress(char key, bool pressed) {
             break;
           case '*':  // cancel
             resetMenu();
-            writeOledSpeed();
+            writeTftSpeed();
             break;
           default:  // do nothing 
             break;
@@ -2016,16 +2046,16 @@ void doKeyPress(char key, bool pressed) {
           case '#':  // next page
             if ( (functionPage+1)*10 < MAX_FUNCTIONS ) {
               functionPage++;
-              writeOledFunctionList(""); 
+              writeTftFunctionList(""); 
             } else {
               functionPage = 0;
               keypadUseType = KEYPAD_USE_OPERATION;
-              writeOledDirectCommands();
+              writeTftDirectCommands();
             }
             break;
           case '*':  // cancel
             resetMenu();
-            writeOledSpeed();
+            writeTftSpeed();
             break;
           default:  // do nothing 
             break;
@@ -2043,7 +2073,7 @@ void doKeyPress(char key, bool pressed) {
             break;
           case '*':  // cancel
             resetMenu();
-            writeOledSpeed();
+            writeTftSpeed();
             break;
           default:  // do nothing 
             break;
@@ -2287,7 +2317,7 @@ void doMenu() {
           menuCommandStartedTemp = true;
         } else {
           // debug_println("doMenu(): else");
-          writeOledSpeed();
+          writeTftSpeed();
         }
         break;
       }
@@ -2321,7 +2351,7 @@ void doMenuCommand(char menuItem) {
           wiThrottleProtocol.getDirection(currentThrottleIndexChar, loco);
           wiThrottleProtocol.getSpeed(currentThrottleIndexChar);
           resetFunctionStates(currentThrottleIndex);
-          writeOledSpeed();
+          writeTftSpeed();
         } else {
           page = 0;
           writeOledRoster("");
@@ -2340,7 +2370,7 @@ void doMenuCommand(char menuItem) {
         } else { //not loco specified so release all
           releaseAllLocos(currentThrottleIndex);
         }
-        writeOledSpeed();
+        writeTftSpeed();
         break;
       }
     case MENU_ITEM_TOGGLE_DIRECTION: { // change direction
@@ -2358,7 +2388,7 @@ void doMenuCommand(char menuItem) {
             debug_print("throw point: "); debug_println(turnout);
             wiThrottleProtocol.setTurnout(turnout, TurnoutThrow);
           // }
-          writeOledSpeed();
+          writeTftSpeed();
         } else {
           page = 0;
           writeOledTurnoutList("", TurnoutThrow);
@@ -2372,7 +2402,7 @@ void doMenuCommand(char menuItem) {
             debug_print("close point: "); debug_println(turnout);
             wiThrottleProtocol.setTurnout(turnout, TurnoutClose);
           // }
-          writeOledSpeed();
+          writeTftSpeed();
         } else {
           page = 0;
           writeOledTurnoutList("",TurnoutClose);
@@ -2386,7 +2416,7 @@ void doMenuCommand(char menuItem) {
             debug_print("route: "); debug_println(route);
             wiThrottleProtocol.setRoute(route);
           // }
-          writeOledSpeed();
+          writeTftSpeed();
         } else {
           page = 0;
           writeOledRouteList("");
@@ -2399,7 +2429,7 @@ void doMenuCommand(char menuItem) {
       }
     case MENU_ITEM_FUNCTION_KEY_TOGGLE: { // toggle showing Def Keys vs Function labels
         hashShowsFunctionsInsteadOfKeyDefs = !hashShowsFunctionsInsteadOfKeyDefs;
-        writeOledSpeed();
+        writeTftSpeed();
         break;
       } 
     case MENU_ITEM_EDIT_CONSIST: { // edit consist - loco facings
@@ -2411,7 +2441,7 @@ void doMenuCommand(char menuItem) {
           && ((key-'0') <= wiThrottleProtocol.getNumberOfLocomotives(currentThrottleIndexChar)) ) {
             selectEditConsistList(key - '0');
           }
-          writeOledSpeed();
+          writeTftSpeed();
         } else {
           writeOledEditConsist();
         }
@@ -2419,17 +2449,17 @@ void doMenuCommand(char menuItem) {
       } 
     case MENU_ITEM_HEARTBEAT_TOGGLE: { // disable/enable the heartbeat Check
         toggleHeartbeatCheck();
-        writeOledSpeed();
+        writeTftSpeed();
         break;
       }
     case MENU_ITEM_DROP_BEFORE_ACQUIRE_TOGGLE: { // disable/enable drop before Acquire
         toggleDropBeforeAquire();
-        writeOledSpeed();
+        writeTftSpeed();
         break;
       }
     case MENU_ITEM_SAVE_CURRENT_LOCOS: {
         writePreferences();
-        writeOledSpeed();
+        writeTftSpeed();
         break;
       }
     case MENU_ITEM_INCREASE_MAX_THROTTLES: { //increase number of Throttles
@@ -2465,10 +2495,10 @@ void doMenuCommand(char menuItem) {
           if (function != "") { // a function is specified
             doFunction(currentThrottleIndex, functionNumber, true, true);  // always act like latching i.e. pressed
           }
-          writeOledSpeed();
+          writeTftSpeed();
         } else {
           functionPage = 0;
-          writeOledFunctionList("");
+          writeTftFunctionList("");
         }
         break;
       }
@@ -2568,14 +2598,14 @@ void speedEstop() {
     speedSet(getMultiThrottleChar(i),0);
     currentSpeed[i] = 0;
   }
-  writeOledSpeed();
+  writeTftSpeed();
 }
 
 void speedEstopCurrentLoco() {
   debug_println("Speed EStop Curent Loco"); 
   wiThrottleProtocol.emergencyStop(currentThrottleIndexChar);
   speedSet(currentThrottleIndexChar,0);
-  writeOledSpeed();
+  writeTftSpeed();
 }
 
 void speedDown(int multiThrottleIndex, int amt) {
@@ -2613,7 +2643,7 @@ void speedSet(int multiThrottleIndex, int amt) {
 
     if ( (keypadUseType == KEYPAD_USE_OPERATION) && (!menuIsShowing) 
     && (multiThrottleIndex==currentThrottleIndex) ) {
-      writeOledSpeed();
+      writeTftSpeed();
     }
   }
 }
@@ -2717,7 +2747,7 @@ void releaseAllLocos(int multiThrottleIndex) {
     for(int index=wiThrottleProtocol.getNumberOfLocomotives(multiThrottleIndexChar)-1;index>=0;index--) {
       loco = wiThrottleProtocol.getLocomotiveAtPosition(multiThrottleIndexChar, index);
       wiThrottleProtocol.releaseLocomotive(multiThrottleIndexChar, loco);
-      writeOledSpeed();  // note the released locos may not be visible
+      writeTftSpeed();  // note the released locos may not be visible
     } 
     resetFunctionLabels(multiThrottleIndex);
   }
@@ -2763,7 +2793,7 @@ void toggleAdditionalMultiplier() {
   for (int i=0; i<maxThrottles; i++) {
     currentSpeedStep[i] = speedStep * speedStepCurrentMultiplier;
   }
-  writeOledSpeed();
+  writeTftSpeed();
 }
 
 void toggleHeartbeatCheck() {
@@ -2788,7 +2818,7 @@ void toggleDropBeforeAquire() {
 void toggleDirection(int multiThrottleIndex) {
   if (wiThrottleProtocol.getNumberOfLocomotives(getMultiThrottleChar(multiThrottleIndex)) > 0) {
     changeDirection(multiThrottleIndex, (currentDirection[multiThrottleIndex] == Forward) ? Reverse : Forward );
-    writeOledSpeed();
+    writeTftSpeed();
   }
 }
 
@@ -2827,7 +2857,7 @@ void changeDirection(int multiThrottleIndex, Direction direction) {
       wiThrottleProtocol.setDirection(multiThrottleChar, leadLoco, direction);
     } 
   }
-  writeOledSpeed();
+  writeTftSpeed();
   // debug_println("changeDirection(): end "); 
 }
 
@@ -2840,7 +2870,7 @@ void doDirectFunction(int multiThrottleIndex, int functionNumber, bool pressed, 
   if (wiThrottleProtocol.getNumberOfLocomotives(multiThrottleIndexChar) > 0) {
     debug_print("direct fn: "); debug_print(functionNumber); debug_println( pressed ? " Pressed" : " Released");
     doFunctionWhichLocosInConsist(multiThrottleIndex, functionNumber, pressed, force);
-    writeOledSpeed(); 
+    writeTftSpeed(); 
   }
   // debug_print("doDirectFunction(): end"); 
 }
@@ -2866,7 +2896,7 @@ void doFunction(int multiThrottleIndex, int functionNumber, bool pressed, bool f
       doFunctionWhichLocosInConsist(multiThrottleIndex, functionNumber, pressed, false);
       debug_print("fn: "); debug_print(functionNumber); debug_println(" NOT FORCED");
     }
-    writeOledSpeed(); 
+    writeTftSpeed(); 
   }
   // debug_println("doFunction(): ");
 }
@@ -2890,7 +2920,7 @@ void powerOnOff(TrackPower powerState) {
   debug_println("powerOnOff()");
   wiThrottleProtocol.setTrackPower(powerState);
   trackPower = powerState;
-  writeOledSpeed();
+  writeTftSpeed();
 }
 
 void powerToggle() {
@@ -2912,7 +2942,7 @@ void nextThrottle() {
   currentThrottleIndexChar = getMultiThrottleChar(currentThrottleIndex);
 
   if (currentThrottleIndex!=wasThrottle) {
-    writeOledSpeed();
+    writeTftSpeed();
   }
 }
 
@@ -2923,7 +2953,7 @@ void throttle(int throttleIndex) {
   currentThrottleIndexChar = getMultiThrottleChar(currentThrottleIndex);
 
   if (currentThrottleIndex!=wasThrottle) {
-    writeOledSpeed();
+    writeTftSpeed();
   }
 }
 
@@ -2942,7 +2972,7 @@ void changeNumberOfThrottles(bool increase) {
       }
     }
   }
-  writeOledSpeed();
+  writeTftSpeed();
 }
 
 void batteryShowToggle() {
@@ -2959,7 +2989,7 @@ void batteryShowToggle() {
       showBatteryTest = ICON_ONLY;
       break;
   }
-  writeOledSpeed();
+  writeTftSpeed();
 }
 
 void stopThenToggleDirection() {
@@ -2978,7 +3008,7 @@ void reconnect() {
   clearOledArray(); 
   oledText[0] = appName; oledText[6] = appVersion; 
   oledText[2] = MSG_DISCONNECTED;
-  writeOledArray(false, false);
+  writeTftArray(false, false);
   delay(5000);
   disconnectWitServer();
 }
@@ -3054,7 +3084,7 @@ void selectRoster(int selection) {
     wiThrottleProtocol.getDirection(currentThrottleIndexChar, loco);
     wiThrottleProtocol.getSpeed(currentThrottleIndexChar);
     resetFunctionStates(currentThrottleIndex);
-    writeOledSpeed();
+    writeTftSpeed();
     keypadUseType = KEYPAD_USE_OPERATION;
   }
 }
@@ -3066,7 +3096,7 @@ void selectTurnoutList(int selection, TurnoutAction action) {
     String turnout = turnoutListSysName[selection];
     debug_print("Turnout Selected: "); debug_println(turnout);
     wiThrottleProtocol.setTurnout(turnout,action);
-    writeOledSpeed();
+    writeTftSpeed();
     keypadUseType = KEYPAD_USE_OPERATION;
   }
 }
@@ -3078,7 +3108,7 @@ void selectRouteList(int selection) {
     String route = routeListSysName[selection];
     debug_print("Route Selected: "); debug_println(route);
     wiThrottleProtocol.setRoute(route);
-    writeOledSpeed();
+    writeTftSpeed();
     keypadUseType = KEYPAD_USE_OPERATION;
   }
 }
@@ -3091,7 +3121,7 @@ void selectFunctionList(int selection) {
     debug_print("Function Selected: "); debug_println(function);
     doFunction(currentThrottleIndex, selection, true,false);
     functionHasBeenSelected = true;    
-    writeOledSpeed();
+    writeTftSpeed();
     // keypadUseType = KEYPAD_USE_OPERATION;   // don't reset it now.  Do so on the release.
   }
 }
@@ -3102,7 +3132,7 @@ void selectEditConsistList(int selection) {
   if (wiThrottleProtocol.getNumberOfLocomotives(currentThrottleIndexChar) > 1 ) {
     String loco = wiThrottleProtocol.getLocomotiveAtPosition(currentThrottleIndexChar, selection);
     toggleLocoFacing(currentThrottleIndex, loco);
-    writeOledSpeed();
+    writeTftSpeed();
     keypadUseType = KEYPAD_USE_OPERATION;
     menuCommandStarted = false;
   }
@@ -3112,10 +3142,10 @@ void selectEditConsistList(int selection) {
 //  oLED functions
 // *********************************************************************************
 
-void setAppnameForOled() {
-  oledText[0] = appName; oledText[6] = appVersion; 
+void setAppnameForTft() {
+  oledText[0] = appName;
+  oledText[6] = appVersion;
 }
-
 void receivingServerInfoOled(int index, int maxExpected) {
   debug_print("receivingServerInfoOled(): LastSent: ");
   debug_println(lastReceivingServerDetailsTime);
@@ -3124,7 +3154,7 @@ void receivingServerInfoOled(int index, int maxExpected) {
       if (broadcastMessageText == "") broadcastMessageText = MSG_RECEIVING_SERVER_DETAILS;
       lastReceivingServerDetailsTime = millis();
       broadcastMessageTime = millis();
-      setMenuTextForOled(menu_menu);
+      setMenuTextForTft(menu_menu);
       refreshOled();
     } // else do nothing
   } else {
@@ -3148,13 +3178,27 @@ void setMenuTextForOled(int menuTextIndex) {
     }
   }
 }
+//CONVERSION PARA LA FUNCION DE ARRIBA
+void setMenuTextForTft(int menuTextIndex) {
+  debug_print("setMenuTextForTft(): ");
+  debug_println(menuTextIndex);
+  oledText[5] = menu_text[menuTextIndex];
+  if (broadcastMessageText != "") {
+    if (millis() - broadcastMessageTime < 10000) {
+      oledText[5] = broadcastMessageText;
+    } else {
+      broadcastMessageText = "";
+      broadcastMessageTime = 0;
+    }
+  }
+}
 
 void refreshOled() {
      debug_print("refreshOled(): ");
      debug_println(lastOledScreen);
   switch (lastOledScreen) {
     case last_oled_screen_speed:
-      writeOledSpeed();
+      writeTftSpeed();
       break;
     case last_oled_screen_turnout_list:
       writeOledTurnoutList(lastOledStringParameter, lastOledTurnoutParameter);
@@ -3163,28 +3207,28 @@ void refreshOled() {
       writeOledRouteList(lastOledStringParameter);
       break;
     case last_oled_screen_function_list:
-      writeOledFunctionList(lastOledStringParameter);
+      writeTftFunctionList(lastOledStringParameter);
       break;
     case last_oled_screen_menu:
-      writeOledMenu(lastOledStringParameter, true);
+      writeTftMenu(lastOledStringParameter, true);
       break;
     case last_oled_screen_extra_submenu:
-      writeOledMenu(lastOledStringParameter, false);
+      writeTftMenu(lastOledStringParameter, false);
       break;
     case last_oled_screen_all_locos:
-      writeOledAllLocos(lastOledBoolParameter);
+      writeTftAllLocos(lastOledBoolParameter);
       break;
     case last_oled_screen_edit_consist:
       writeOledEditConsist();
       break;
     case last_oled_screen_direct_commands:
-      writeOledDirectCommands();
+      writeTftDirectCommands();
       break;
   }
 }
 
 
-void writeOledFoundSSids(String soFar) {
+/*void writeOledFoundSSids(String soFar) {
   menuIsShowing = true;
   keypadUseType = KEYPAD_USE_SELECT_SSID_FROM_FOUND;
   if (soFar == "") { // nothing entered yet
@@ -3195,11 +3239,79 @@ void writeOledFoundSSids(String soFar) {
       }
     }
     oledText[5] = "(" + String(page+1) +  ") " + menu_text[menu_select_ssids_from_found];
-    writeOledArray(false, false);
+    writeTftArray(false, false);
   // } else {
   //   int cmd = menuCommand.substring(0, 1).toInt();
   }
+}*/
+/*void writeTftFoundSSids(String soFar) {
+  menuIsShowing = true;
+  keypadUseType = KEYPAD_USE_SELECT_SSID_FROM_FOUND;
+
+  if (soFar == "") { // nada ingresado aún
+    clearOledArray();
+
+    for (int i = 0; i < 5 && i < foundSsidsCount; i++) {
+      if (foundSsids[(page * 5) + i].length() > 0) {
+        oledText[i] = String(i) + ": " + foundSsids[(page * 5) + i] + "   (" + foundSsidRssis[(page * 5) + i] + ")";
+      }
+    }
+
+    oledText[5] = "(" + String(page + 1) + ") " + menu_text[menu_select_ssids_from_found];
+
+    writeTftArray(false, false);  // dibuja el array en TFT
+  }
+}*/
+void writeTftFoundSSids(String soFar) {
+  Serial.println("writeTftFoundSSids() INICIO");
+
+  menuIsShowing = true;
+  keypadUseType = KEYPAD_USE_SELECT_SSID_FROM_FOUND;
+  functionHasBeenSelected = false;
+
+  if (soFar == "") {
+    clearOledArray();  // limpia buffers
+    tft.fillScreen(ST77XX_BLACK);
+
+    int y = 5;
+
+    Serial.print("SSID Count: "); Serial.println(foundSsidsCount);
+    Serial.print("Página actual: "); Serial.println(page);
+
+    // Color seguro (gris oscuro definido manualmente)
+    uint16_t darkGrey = tft.color565(64, 64, 64);
+
+    for (int i = 0; i < 5 && i < foundSsidsCount; i++) {
+      int index = (page * 5) + i;
+      if (foundSsids[index].length() > 0) {
+        String line = String(i) + ": " + foundSsids[index] + "   (" + foundSsidRssis[index] + ")";
+        Serial.print("SSID["); Serial.print(i); Serial.print("]: "); Serial.println(line);
+
+        // Dibujar fondo (opcional)
+        tft.fillRect(0, y - 1, 128, 12, darkGrey);  // línea de fondo
+        tft.setTextColor(ST77XX_WHITE);
+        tft.setCursor(2, y);
+        tft.setTextSize(1);
+        tft.print(line);
+
+        y += 12;  // incrementar línea
+      }
+    }
+
+    // Footer
+    String footer = "(" + String(page + 1) + ") 0-4    9 List  # Pg   E.btn OFF";
+    Serial.print("Footer: "); Serial.println(footer);
+    tft.fillRect(0, 70, 128, 10, darkGrey);
+    tft.setTextColor(ST77XX_WHITE);
+    tft.setCursor(2, 72);
+    tft.setTextSize(1);
+    tft.print(footer);
+  }
+
+  Serial.println("writeTftFoundSSids() FIN");
 }
+
+
 
 void writeOledRoster(String soFar) {
   lastOledScreen = last_oled_screen_roster;
@@ -3216,7 +3328,7 @@ void writeOledRoster(String soFar) {
       }
     }
     oledText[5] = "(" + String(page+1) +  ") " + menu_text[menu_roster];
-    writeOledArray(false, false);
+    writeTftArray(false, false);
   // } else {
   //   int cmd = menuCommand.substring(0, 1).toInt();
   }
@@ -3243,7 +3355,7 @@ void writeOledTurnoutList(String soFar, TurnoutAction action) {
       }
     }
     oledText[5] = "(" + String(page+1) +  ") " + menu_text[menu_turnout_list];
-    writeOledArray(false, false);
+    writeTftArray(false, false);
   // } else {
   //   int cmd = menuCommand.substring(0, 1).toInt();
   }
@@ -3265,13 +3377,13 @@ void writeOledRouteList(String soFar) {
       }
     }
     oledText[5] =  "(" + String(page+1) +  ") " + menu_text[menu_route_list];
-    writeOledArray(false, false);
+    writeTftArray(false, false);
   // } else {
   //   int cmd = menuCommand.substring(0, 1).toInt();
   }
 }
 
-void writeOledFunctionList(String soFar) {
+/*void writeOledFunctionList(String soFar) {
   lastOledScreen = last_oled_screen_function_list;
   lastOledStringParameter = soFar;
 
@@ -3302,13 +3414,61 @@ void writeOledFunctionList(String soFar) {
       oledText[2] = MSG_THROTTLE_NUMBER + String(currentThrottleIndex+1);
       oledText[3] = MSG_NO_LOCO_SELECTED;
       // oledText[5] = menu_cancel;
-      setMenuTextForOled(menu_cancel);
+      setMenuTextForTft(menu_cancel);
     }
-    writeOledArray(false, false);
+    writeTftArray(false, false);
   // } else {
   //   int cmd = menuCommand.substring(0, 1).toInt();
   }
+}*/
+void writeTftFunctionList(String soFar) {
+  lastOledScreen = last_oled_screen_function_list;
+  lastOledStringParameter = soFar;
+
+  menuIsShowing = true;
+  keypadUseType = KEYPAD_USE_SELECT_FUNCTION;
+  functionHasBeenSelected = false;
+
+  if (soFar == "") {
+    clearOledArray();
+
+    if (wiThrottleProtocol.getNumberOfLocomotives(currentThrottleIndexChar) > 0) {
+      int j = 0;
+      int k = 0;
+
+      for (int i = 0; i < 10; i++) {
+        k = (functionPage * 10) + i;
+
+        if (k < MAX_FUNCTIONS) {
+          j = (i < 5) ? i : i + 1;
+
+          // Etiqueta de función
+          if (k < 10) {
+            oledText[j] = String(i) + ": " + functionLabels[currentThrottleIndex][k].substring(0, 10);
+          } else {
+            oledText[j] = String(i) + ": " + String(k) + "-" + functionLabels[currentThrottleIndex][k].substring(0, 7);
+          }
+
+          // Invertir si está activa
+          if (functionStates[currentThrottleIndex][k]) {
+            oledTextInvert[j] = true;
+          }
+        }
+      }
+
+      oledText[5] = "(" + String(functionPage) + ") " + menu_text[menu_function_list];
+
+    } else {
+      oledText[0] = MSG_NO_FUNCTIONS;
+      oledText[2] = MSG_THROTTLE_NUMBER + String(currentThrottleIndex + 1);
+      oledText[3] = MSG_NO_LOCO_SELECTED;
+      setMenuTextForTft(menu_cancel);
+    }
+
+    writeTftArray(false, false);
+  }
 }
+
 
 void writeOledEnterPassword() {
   keypadUseType = KEYPAD_USE_ENTER_SSID_PASSWORD;
@@ -3324,11 +3484,11 @@ void writeOledEnterPassword() {
   oledText[0] = MSG_ENTER_PASSWORD;
   oledText[2] = tempSsidPasswordEntered;
   // oledText[5] = menu_enter_ssid_password;
-  setMenuTextForOled(menu_enter_ssid_password);
-  writeOledArray(false, true);
+  setMenuTextForTft(menu_enter_ssid_password);
+  writeTftArray(false, true);
 }
 
-void writeOledMenu(String soFar, bool primeMenu) {
+/*void writeOledMenu(String soFar, bool primeMenu) {
   debug_print("writeOledMenu() : "); debug_print(primeMenu); debug_print(" : "); debug_println(soFar);
   lastOledStringParameter = soFar;
 
@@ -3351,8 +3511,8 @@ void writeOledMenu(String soFar, bool primeMenu) {
     }
     oledText[10] = "0: " + menuText[0+offset][0];
     // oledText[5] = menu_cancel;
-    setMenuTextForOled(menu_cancel);
-    writeOledArray(false, false);
+    setMenuTextForTft(menu_cancel);
+    writeTftArray(false, false);
   } else {
     int cmd = menuCommand.substring(0, 1).toInt();
 
@@ -3374,17 +3534,73 @@ void writeOledMenu(String soFar, bool primeMenu) {
             oledText[2] = MSG_THROTTLE_NUMBER + String(currentThrottleIndex+1);
             oledText[3] = MSG_NO_LOCO_SELECTED;
             // oledText[5] = menu_cancel;
-            setMenuTextForOled(menu_cancel);
+            setMenuTextForTft(menu_cancel);
           } 
           break;
         }
     }
 
-    writeOledArray(false, false, true, drawTopLine);
+    writeTftArray(false, false, true, drawTopLine);
+  }
+}*/
+void writeTftMenu(String soFar, bool primeMenu) {
+  debug_print("writeTftMenu() : "); debug_print(primeMenu); debug_print(" : "); debug_println(soFar);
+  lastOledStringParameter = soFar;
+
+  int offset = 0;
+  lastOledScreen = last_oled_screen_menu;
+  if (!primeMenu) {
+    offset = 10;
+    lastOledScreen = last_oled_screen_extra_submenu;
+  }
+
+  menuIsShowing = true;
+  bool drawTopLine = false;
+
+  if ((soFar == "") || ((!primeMenu) && (soFar.length() == 1))) {
+    clearOledArray();
+    int j = 0;
+    for (int i = 1 + offset; i < 10 + offset; i++) {
+      j = (i < 6 + offset) ? i - offset : i + 1 - offset;
+      oledText[j - 1] = String(i - offset) + ": " + menuText[i][0];
+    }
+    oledText[10] = "0: " + menuText[0 + offset][0];
+    setMenuTextForTft(menu_cancel);
+    writeTftArray(false, false);
+  } else {
+    int cmd = menuCommand.substring(0, 1).toInt();
+
+    clearOledArray();
+
+    oledText[0] = ">> " + menuText[cmd][0] + ":";
+    oledText[6] = menuCommand.substring(1, menuCommand.length());
+    oledText[5] = menuText[cmd + offset][1];
+
+    switch (soFar.charAt(0)) {
+      case MENU_ITEM_DROP_LOCO: {
+        if (wiThrottleProtocol.getNumberOfLocomotives(currentThrottleIndexChar) > 0) {
+          writeTftAllLocos(false);
+          drawTopLine = true;
+        }
+        break;
+      }
+      case MENU_ITEM_FUNCTION:
+      case MENU_ITEM_TOGGLE_DIRECTION: {
+        if (wiThrottleProtocol.getNumberOfLocomotives(currentThrottleIndexChar) <= 0) {
+          oledText[2] = MSG_THROTTLE_NUMBER + String(currentThrottleIndex + 1);
+          oledText[3] = MSG_NO_LOCO_SELECTED;
+          setMenuTextForTft(menu_cancel);
+        }
+        break;
+      }
+    }
+
+    writeTftArray(false, false, true, drawTopLine);
   }
 }
 
-void writeOledAllLocos(bool hideLeadLoco) {
+
+/*void writeOledAllLocos(bool hideLeadLoco) {
   lastOledScreen = last_oled_screen_all_locos;
   lastOledBoolParameter = hideLeadLoco;
 
@@ -3405,7 +3621,36 @@ void writeOledAllLocos(bool hideLeadLoco) {
       i++;      
     } 
   }
+}*/
+void writeTftAllLocos(bool hideLeadLoco) {
+  lastOledScreen = last_oled_screen_all_locos;
+  lastOledBoolParameter = hideLeadLoco;
+
+  int startAt = (hideLeadLoco) ? 1 : 0;
+  debug_println("writeTftAllLocos(): ");
+  String loco;
+  int j = 0;
+  int i = 0;
+
+  clearOledArray();
+
+  if (wiThrottleProtocol.getNumberOfLocomotives(currentThrottleIndexChar) > 0) {
+    for (int index = 0; ((index < wiThrottleProtocol.getNumberOfLocomotives(currentThrottleIndexChar)) && (i < 8)); index++) {
+      j = (i < 4) ? i : i + 2;
+      loco = wiThrottleProtocol.getLocomotiveAtPosition(currentThrottleIndexChar, index);
+      if (i >= startAt) {
+        oledText[j + 1] = String(i) + ": " + loco;
+        if (wiThrottleProtocol.getDirection(currentThrottleIndexChar, loco) == Reverse) {
+          oledTextInvert[j + 1] = true;
+        }
+      }
+      i++;
+    }
+  }
+
+  writeTftArray(false, false);
 }
+
 
 void writeOledEditConsist() {
   lastOledScreen = last_oled_screen_edit_consist;
@@ -3414,10 +3659,10 @@ void writeOledEditConsist() {
   clearOledArray();
   debug_println("writeOledEditConsist(): ");
   keypadUseType = KEYPAD_USE_EDIT_CONSIST;
-  writeOledAllLocos(true);
+  writeTftAllLocos(true);
   oledText[0] = MENU_ITEM_TEXT_TITLE_EDIT_CONSIST;
   oledText[5] = MENU_ITEM_TEXT_MENU_EDIT_CONSIST;
-  writeOledArray(false, false);
+  writeTftArray(false, false);
 }
 
 void writeHeartbeatCheck() {
@@ -3430,10 +3675,10 @@ void writeHeartbeatCheck() {
     oledText[1] = MSG_HEARTBEAT_CHECK_DISABLED; 
   }
   oledText[5] = MENU_ITEM_TEXT_MENU_HEARTBEAT;
-  writeOledArray(false, false);
+  writeTftArray(false, false);
 }
 
-void writeOledSpeed() {
+/*void writeOledSpeed() {
   lastOledScreen = last_oled_screen_speed;
 
   // debug_println("writeOledSpeed() ");
@@ -3507,7 +3752,7 @@ void writeOledSpeed() {
     drawTopLine = true;
 
   } else {
-    setAppnameForOled();
+    setAppnameForTft();
     oledText[2] = MSG_THROTTLE_NUMBER + String(currentThrottleIndex+1);
     oledText[3] = MSG_NO_LOCO_SELECTED;
     drawTopLine = true;
@@ -3515,16 +3760,16 @@ void writeOledSpeed() {
 
   if (!hashShowsFunctionsInsteadOfKeyDefs) {
       // oledText[5] = menu_menu;
-      setMenuTextForOled(menu_menu);
+      setMenuTextForTft(menu_menu);
     } else {
     // oledText[5] = menu_menu_hash_is_functions;
-    setMenuTextForOled(menu_menu_hash_is_functions);
+    setMenuTextForTft(menu_menu_hash_is_functions);
   }
 
-  writeOledArray(false, false, false, drawTopLine);
+  writeTftArray(false, false, false, drawTopLine);
 
   if (wiThrottleProtocol.getNumberOfLocomotives(currentThrottleIndexChar) > 0 ) {
-    writeOledFunctions();
+    writeTftFunctions();
 
      // throttle number
     u8g2.setDrawColor(0);
@@ -3534,8 +3779,8 @@ void writeOledSpeed() {
     u8g2.drawStr(2,15, String(currentThrottleIndex+1).c_str());
   }
 
-  writeOledBattery();
-  writeOledSpeedStepMultiplier();
+  drawTftBattery();
+  writeTftSpeedStepMultiplier();
 
   if (trackPower == PowerOn) {
     // u8g2.drawBox(0,41,15,8);
@@ -3578,7 +3823,7 @@ void writeOledSpeed() {
   u8g2.sendBuffer();
 
   // debug_println("writeOledSpeed(): end");
-}
+}*/
 //VERSION TFT------------------------------------------------------------------------------------------------------
 void writeTftSpeed() {
   lastOledScreen = last_oled_screen_speed;
@@ -3673,7 +3918,7 @@ void writeTftSpeed() {
   }
 
   drawTftBattery();                // reemplazo de writeOledBattery()
-  drawTftSpeedStepMultiplier();   // reemplazo de writeOledSpeedStepMultiplier()
+  writeTftSpeedStepMultiplier();   // reemplazo de writeOledSpeedStepMultiplier()
 
   if (trackPower == PowerOn) {
     tft.fillRoundRect(0, 40, 9, 9, 1, ST77XX_CYAN);
@@ -3702,16 +3947,12 @@ void writeTftSpeed() {
     tft.print(sNextThrottleSpeedAndDirection);
   }
 }
-void drawTftBattery() {
-  tft.drawRect(110, 2, 16, 8, ST77XX_CYAN);
-  tft.fillRect(126, 4, 2, 4, ST77XX_CYAN);
-  tft.fillRect(112, 4, 10, 4, ST77XX_CYAN);  // batería al 100%
-}
+
 
 
 //----------------------------------------------------------------------------------------------------------------
 
-void writeOledSpeedStepMultiplier() {
+/*void writeTftSpeedStepMultiplier() {
   if (speedStep != currentSpeedStep[currentThrottleIndex]) {
     // oledText[3] = "X " + String(speedStepCurrentMultiplier);
     u8g2.setDrawColor(1);
@@ -3721,9 +3962,23 @@ void writeOledSpeedStepMultiplier() {
     // u8g2.drawStr(0, 37, ("X " + String(speedStepCurrentMultiplier)).c_str());
     u8g2.drawStr(9, 37, String(speedStepCurrentMultiplier).c_str());
   }
+}*/
+void writeTftSpeedStepMultiplier() {
+  if (speedStep != currentSpeedStep[currentThrottleIndex]) {
+    // Ícono representativo de step (puede ser un símbolo o letra)
+    tft.setTextColor(ST77XX_WHITE);
+    tft.setTextSize(1);
+    tft.setCursor(1, 38);
+    //tft.print("S");  // Alternativa a glyph_speed_step
+    tft.print("»");  // Unicode: U+00BB
+
+    // Valor del multiplicador
+    tft.setCursor(12, 38);
+    tft.print(speedStepCurrentMultiplier);
+  }
 }
 
-void writeOledBattery() {
+/*void writeOledBattery() {
   // debug_print("writeOledBattery(): time: "); debug_println(lastBatteryCheckTime);
   if ( (useBatteryTest) && (showBatteryTest!=NONE) && (lastBatteryCheckTime>0)) {
     // debug_println("writeOledBattery(): do it"); 
@@ -3753,114 +4008,82 @@ void writeOledBattery() {
       }
     }
   }
+}*/
+/*void drawTftBattery() {
+  if ((useBatteryTest) && (showBatteryTest != NONE) && (lastBatteryCheckTime > 0)) {
+    int x = 110;
+    int y = 11;
+    if (showBatteryTest == ICON_AND_PERCENT) x = 102;
+
+    // Ícono de batería: la letra Z
+    tft.setTextColor(ST77XX_WHITE);
+    tft.setTextSize(1);
+    tft.setCursor(x, y);
+    tft.print("Z");
+
+    // Barras de nivel
+    if (lastBatteryTestValue > 10) tft.fillRect(x + 1, y - 6, x + 1, y - 3, ST77XX_WHITE);
+    if (lastBatteryTestValue > 25) tft.fillRect(x + 2, y - 6, x + 2, y - 3, ST77XX_WHITE);
+    if (lastBatteryTestValue > 50) tft.fillRect(x + 3, y - 6, x + 3, y - 3, ST77XX_WHITE);
+    if (lastBatteryTestValue > 75) tft.fillRect(x + 4, y - 6, x + 4, y - 3, ST77XX_WHITE);
+    if (lastBatteryTestValue > 90) tft.fillRect(x + 5, y - 6, x + 5, y - 3, ST77XX_WHITE);
+
+    // Porcentaje de batería (si aplica)
+    if (showBatteryTest == ICON_AND_PERCENT) {
+      x = 112;
+      y = 10;
+      tft.setCursor(x, y);
+      if (lastBatteryTestValue < 5) {
+        tft.print("LOW");
+      } else {
+        tft.print(String(lastBatteryTestValue) + "%");
+      }
+    }
+  }
+}*/
+//AUXILIAR
+void drawTftBattery() {
+  // Ejemplo: dibujar un ícono de batería simple
+  tft.drawRect(110, 2, 16, 8, ST77XX_WHITE);       // cuerpo
+  tft.fillRect(126, 4, 2, 4, ST77XX_RED);        // terminal
+  tft.fillRect(112, 4, 10, 4, ST77XX_RED);       // nivel (fijo)
 }
 
-void writeOledFunctions() {
-  lastOledScreen = last_oled_screen_speed;
+void writeTftFunctions() {
+  debug_println("writeTftFunctions():");
 
-  debug_println("writeOledFunctions():");
-  //  int x = 99;
-  // bool anyFunctionsActive = false;
-   for (int i=0; i < MAX_FUNCTIONS; i++) {
-     if (functionStates[currentThrottleIndex][i]) {
-      // old function state format
-  //     //  debug_print("Fn On "); debug_println(i);
-  //     if (i < 12) {
-  //     int y = (i+2)*10-8;
-  //     if ((i>=4) && (i<8)) { 
-  //       x = 109; 
-  //       y = (i-2)*10-8;
-  //     } else if (i>=8) { 
-  //       x = 119; 
-  //       y = (i-6)*10-8;
-  //     }
-      
-  //     u8g2.drawBox(x,y,8,8);
-  //     u8g2.setDrawColor(0);
-  //     u8g2.setFont(u8g2_font_profont10_tf);
-  //     u8g2.drawStr( x+2, y+7, String( (i<10) ? i : i-10 ).c_str());
-  //     u8g2.setDrawColor(1);
-  //   //  } else {
-  //   //    debug_print("Fn Off "); debug_println(i);
+  // Posición inicial
+  int baseX = 12;
+  int baseY = 13;
+  int ancho = 5;
+  int alto = 7;
+  int espaciado = 4;
 
-      // new function state format
-      // anyFunctionsActive = true;
-      // u8g2.drawBox(i*4+12,12,5,7);
-      u8g2.drawRBox(i*4+12,12+1,5,7,2);
-      u8g2.setDrawColor(0);
-      u8g2.setFont(FONT_FUNCTION_INDICATORS);   
-      u8g2.drawUTF8( i*4+1+12, 18+1, String( (i<10) ? i : ((i<20) ? i-10 : i-20)).c_str());
-      u8g2.setDrawColor(1);
-     }
-    //  if (anyFunctionsActive) {
-    //     u8g2.drawStr( 0, 18, (function_states).c_str());
-    // //     u8g2.drawHLine(0,19,128);
-    //  }
-   }
-  debug_println("writeOledFunctions(): end");
+  for (int i = 0; i < MAX_FUNCTIONS; i++) {
+    if (functionStates[currentThrottleIndex][i]) {
+      int x = baseX + i * espaciado;
+      int y = baseY;
+
+      // Dibuja rectángulo redondeado (función activa)
+      tft.fillRoundRect(x, y, ancho, alto, 2, ST77XX_CYAN);
+
+      // Dibuja el número encima (negro sobre cian)
+      tft.setTextColor(ST77XX_BLACK);
+      tft.setTextSize(1);
+      tft.setCursor(x + 1, y + 1);
+      uint8_t n = (i < 10) ? i : ((i < 20) ? i - 10 : i - 20);
+      tft.print(n);
+    }
+  }
+
+  debug_println("writeTftFunctions(): end");
 }
-//-----------------------------------------------------------------
-void writeOledArray(bool isThreeColums, bool isPassword) {
-  writeOledArray(isThreeColums, isPassword, true, false);
-}
-//EQUIVALENTE EN TFT
 void writeTftArray(bool isThreeColums, bool isPassword) {
   writeTftArray(isThreeColums, isPassword, true, false);
 }
-//----------------------------------------------------------------
-void writeOledArray(bool isThreeColums, bool isPassword, bool sendBuffer) {
-  writeOledArray(isThreeColums, isPassword, sendBuffer, false);
-}
-//EQUIVALENTE EN TFT
 void writeTftArray(bool isThreeColums, bool isPassword, bool sendBuffer) {
   writeTftArray(isThreeColums, isPassword, sendBuffer, false);
 }
-
-//---------------------------------------------------------------------------------------------
-void writeOledArray(bool isThreeColums, bool isPassword, bool sendBuffer, bool drawTopLine) {
-  // debug_println("Start writeOledArray()");
-  u8g2.clearBuffer();					// clear the internal memory
-
-  u8g2.setFont(FONT_DEFAULT); // small
-  
-  int x=0;
-  int y=10;
-  int xInc = 64; 
-  int max = 12;
-  if (isThreeColums) {
-    xInc = 42;
-    max = 18;
-  }
-
-  for (int i=0; i < max; i++) {
-    const char *cLine1 = oledText[i].c_str();
-    if ((isPassword) && (i==2)) u8g2.setFont(FONT_PASSWORD); 
-
-    if (oledTextInvert[i]) {
-      u8g2.drawBox(x,y-8,62,10);
-      u8g2.setDrawColor(0);
-    }
-    u8g2.drawUTF8(x,y, cLine1);
-    u8g2.setDrawColor(1);
-
-    if ((isPassword) && (i==2)) u8g2.setFont(FONT_DEFAULT); 
-    y = y + 10;
-    if ((i==5) || (i==11)) {
-      x = x + xInc;
-      y = 10;
-    }
-  }
-
-  if (drawTopLine) {
-    u8g2.drawHLine(0,11,128);
-    writeOledBattery();
-  }
-  u8g2.drawHLine(0,51,128);
-
-  if (sendBuffer) u8g2.sendBuffer();					// transfer internal memory to the display
-  // debug_println("writeOledArray(): end ");
-}
-//EQUIVALENTE A LA FUNCION DE ARRIBA--------------------------------------------------------------------
 void writeTftArray(bool isThreeColums, bool isPassword, bool sendBuffer, bool drawTopLine) {
   // Limpia pantalla
   tft.fillScreen(ST77XX_BLACK);
@@ -3913,13 +4136,7 @@ void writeTftArray(bool isThreeColums, bool isPassword, bool sendBuffer, bool dr
 
   // No se necesita sendBuffer (no existe en TFT)
 }
-//AUXILIAR
-void drawTftBattery() {
-  // Ejemplo: dibujar un ícono de batería simple
-  tft.drawRect(110, 2, 16, 8, ST77XX_WHITE);       // cuerpo
-  tft.fillRect(126, 4, 2, 4, ST77XX_WHITE);        // terminal
-  tft.fillRect(112, 4, 10, 4, ST77XX_WHITE);       // nivel (fijo)
-}
+
 //------------------------------------------------------------------------------------------------------------
 
 void clearOledArray() {
@@ -3929,7 +4146,7 @@ void clearOledArray() {
   }
 }
 
-void writeOledDirectCommands() {
+/*void writeOledDirectCommands() {
   lastOledScreen = last_oled_screen_direct_commands;
 
   oledDirectCommandsAreBeingDisplayed = true;
@@ -3948,9 +4165,39 @@ void writeOledDirectCommands() {
     oledText[i+1] = directCommandText[j][2];
     j++;
   }
-  writeOledArray(true, false);
+  writeTftArray(true, false);
+  menuCommandStarted = false;
+}*/
+void writeTftDirectCommands() {
+  lastOledScreen = last_oled_screen_direct_commands;
+
+  oledDirectCommandsAreBeingDisplayed = true;
+  clearOledArray();
+  oledText[0] = DIRECT_COMMAND_LIST;
+
+  // Primera columna
+  for (int i = 0; i < 4; i++) {
+    oledText[i + 1] = directCommandText[i][0];
+  }
+
+  // Segunda columna
+  int j = 0;
+  for (int i = 6; i < 10; i++) {
+    oledText[i + 1] = directCommandText[j][1];
+    j++;
+  }
+
+  // Tercera columna
+  j = 0;
+  for (int i = 12; i < 16; i++) {
+    oledText[i + 1] = directCommandText[j][2];
+    j++;
+  }
+
+  writeTftArray(true, false);  // dibuja con modo tres columnas
   menuCommandStarted = false;
 }
+
 
 // *********************************************************************************
 
@@ -3960,7 +4207,7 @@ void deepSleepStart() {
 
 void deepSleepStart(int shutdownReason) {
   clearOledArray(); 
-  setAppnameForOled();
+  setAppnameForTft();
   int delayPeriod = 2000;
   if (shutdownReason==SLEEP_REASON_INACTIVITY) {
     oledText[2] = MSG_AUTO_SLEEP;
@@ -3970,8 +4217,8 @@ void deepSleepStart(int shutdownReason) {
     delayPeriod = 10000;
   }
   oledText[3] = MSG_START_SLEEP;
-  writeOledBattery();
-  writeOledArray(false, false, true, true);
+  drawTftBattery();
+  writeTftArray(false, false, true, true);
   delay(delayPeriod);
 
   u8g2.setPowerSave(1);
